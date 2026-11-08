@@ -1,0 +1,14 @@
+gantt
+  title Release plan
+  dateFormat YYYY-MM-DD
+  axisFormat %d %b
+  section Build
+  Parser work        :done,    p1, 2026-11-02, 3d
+  Renderer           :active,  p2, after p1, 4d
+  Export options     :         p3, after p2, 2d
+  section Check
+  Unit tests         :         t1, after p2, 2d
+  Real app check     :crit,    t2, after t3, 1d
+  Red team           :         t3, after p3, 1d
+  section Ship
+  Release            :milestone, m1, after t2, 0d

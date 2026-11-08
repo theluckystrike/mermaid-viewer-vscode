@@ -1,0 +1,20 @@
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant A as App
+  participant S as API server
+  participant D as Database
+  U->>A: Open the dashboard
+  A->>S: GET /reports?since=7d
+  activate S
+  S->>D: SELECT * FROM reports
+  D-->>S: 42 rows
+  alt cache is fresh
+    S-->>A: 200 (from cache)
+  else cache is stale
+    S->>S: Rebuild the cache
+    S-->>A: 200 (fresh)
+  end
+  deactivate S
+  Note over A,S: Every call is local in this example
+  A-->>U: Show the charts

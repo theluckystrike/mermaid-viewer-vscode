@@ -1,0 +1,38 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+// The "More free viewers" list (QuickPick and README) puts live extensions first and, in each group,
+// the extensions people use together with this one first. Pairs come from mon1-work/products.json.
+const support = require('../src/support.js');
+
+const SELF = 'zovo.mermaid-viewer';
+
+test('More free viewers lists live extensions first, once each, without this one', () => {
+  const list = support.otherProducts(SELF);
+  assert.ok(list.length >= 25);
+  assert.ok(list.every((p) => p.id !== SELF));
+  assert.equal(new Set(list.map((p) => p.id)).size, list.length);
+  const firstQueued = list.findIndex((p) => !p.live);
+  // Every Zovo extension can be live (true since 2026-11-08), so there may be no queued rows.
+  if (firstQueued !== -1) {
+    assert.ok(firstQueued > 0);
+    assert.ok(list.slice(firstQueued).every((p) => !p.live));
+  }
+});
+
+test('More free viewers puts the closest pairs first in each group', () => {
+  const list = support.otherProducts(SELF);
+  for (const live of [true, false]) {
+    const w = list.filter((p) => p.live === live).map((p) => support.pairWeight(SELF, p.id));
+    for (let i = 1; i < w.length; i++) assert.ok(w[i - 1] >= w[i], `${live ? 'live' : 'queued'} row ${i} is out of order`);
+  }
+  // The first entry is a closest live pair (which one changes as new extensions go live).
+  assert.equal(support.pairWeight(SELF, list[0].id), Math.max(...list.filter((p) => p.live).map((p) => support.pairWeight(SELF, p.id))));
+});
+
+test('Related list starts with the Graphviz preview, the closest tool to this one', () => {
+  const rel = support.relatedProducts(SELF);
+  assert.equal(rel[0].id, 'zovo.zovo-graphviz-preview');
+  assert.ok(rel.length >= 3 && rel.length <= 5);
+  assert.equal(support.SELF_ID, SELF);
+});

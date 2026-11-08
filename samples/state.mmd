@@ -1,0 +1,15 @@
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Running : start
+  Running --> Paused : pause
+  Paused --> Running : resume
+  Running --> Failed : error
+  Failed --> Idle : reset
+  Running --> Done : finish
+  state Running {
+    [*] --> Loading
+    Loading --> Working
+    Working --> Saving
+    Saving --> [*]
+  }
+  Done --> [*]

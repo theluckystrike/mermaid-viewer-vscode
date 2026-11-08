@@ -1,0 +1,24 @@
+classDiagram
+  class Shape {
+    <<abstract>>
+    +String name
+    +area() double
+    +perimeter() double
+  }
+  class Circle {
+    +double radius
+    +area() double
+  }
+  class Rectangle {
+    +double width
+    +double height
+    +area() double
+  }
+  class Canvas {
+    -List~Shape~ shapes
+    +add(Shape s) void
+    +render() void
+  }
+  Shape <|-- Circle
+  Shape <|-- Rectangle
+  Canvas "1" o-- "*" Shape : holds

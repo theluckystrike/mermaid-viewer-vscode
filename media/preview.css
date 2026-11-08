@@ -1,0 +1,63 @@
+:root { --mv-fg: var(--vscode-editor-foreground); --mv-bg: var(--vscode-editor-background); --mv-accent: var(--vscode-focusBorder, #0078d4); --mv-custom: #f5f5f0; }
+html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+body { background: var(--mv-bg); color: var(--mv-fg); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size, 13px); }
+#app { display: flex; flex-direction: column; height: 100%; }
+#toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 10px; border-bottom: 1px solid var(--vscode-panel-border, rgba(128,128,128,.35)); background: var(--vscode-editorWidget-background, var(--mv-bg)); flex: 0 0 auto; }
+.grp { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex: 0 0 auto; }
+select, input, button { font: inherit; color: var(--vscode-input-foreground, var(--mv-fg)); background: var(--vscode-input-background, transparent); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border, rgba(128,128,128,.5))); border-radius: 2px; padding: 2px 6px; }
+select { background: var(--vscode-dropdown-background, var(--vscode-input-background)); color: var(--vscode-dropdown-foreground, var(--mv-fg)); }
+input[type="color"] { padding: 0 2px; width: 28px; height: 22px; cursor: pointer; }
+input[type="number"] { width: 80px; }
+button { cursor: pointer; background: var(--vscode-button-secondaryBackground, transparent); color: var(--vscode-button-secondaryForeground, var(--mv-fg)); min-width: 26px; }
+button:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground, rgba(128,128,128,.2)); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+button.primary:hover { background: var(--vscode-button-hoverBackground); }
+button.link { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); min-width: 0; }
+button.link:hover { text-decoration: underline; background: none; }
+:focus-visible { outline: 1px solid var(--mv-accent); outline-offset: 1px; }
+#zoomLabel { min-width: 42px; text-align: center; opacity: .8; font-variant-numeric: tabular-nums; }
+#status { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; opacity: .75; font-variant-numeric: tabular-nums; }
+.hidden { display: none !important; }
+body:not(.single) .zoomgrp { display: none; }
+
+#exportMenu { position: fixed; z-index: 30; min-width: 280px; padding: 10px 12px; background: var(--vscode-editorWidget-background, var(--mv-bg)); color: var(--vscode-editorWidget-foreground, var(--mv-fg)); border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128,128,128,.5))); box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0,0,0,.35)); border-radius: 4px; }
+#exportMenu .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+#exportMenu .lbl { min-width: 76px; opacity: .85; }
+#exportMenu .note { opacity: .75; font-size: 12px; }
+#exportMenu .actions { margin-top: 10px; }
+
+#problem { flex: 0 0 auto; padding: 6px 10px; background: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, .18)); border-bottom: 1px solid var(--vscode-inputValidation-errorBorder, #be1100); max-height: 30%; overflow: auto; }
+.problem { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 2px 0; color: inherit; font-family: var(--vscode-editor-font-family, monospace); white-space: pre-wrap; word-break: break-word; }
+button.problem:hover { text-decoration: underline; background: none; }
+.problem.error::before { content: '✖ '; color: var(--vscode-errorForeground, #f14c4c); }
+.problem.limit::before { content: 'ⓘ '; color: var(--vscode-editorInfo-foreground, #3794ff); }
+#problem .note { opacity: .75; margin-top: 2px; }
+
+#viewport { position: relative; flex: 1 1 auto; overflow: hidden; cursor: grab; outline: none; touch-action: none; }
+#viewport.panning { cursor: grabbing; }
+#stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#stage svg { display: block; overflow: visible; }
+#empty { position: absolute; inset: 120px 0 auto 0; display: flex; align-items: center; justify-content: center; opacity: .7; padding: 20px; text-align: center; white-space: pre-wrap; pointer-events: none; }
+body.stale #stage { opacity: .4; filter: grayscale(.6); }
+
+#list { flex: 1 1 auto; overflow: auto; padding: 12px; outline: none; }
+.card { border: 1px solid var(--vscode-panel-border, rgba(128,128,128,.35)); border-radius: 4px; margin: 0 0 14px; overflow: hidden; }
+.card.focus { border-color: var(--mv-accent); }
+.card-head { display: flex; align-items: center; gap: 10px; padding: 4px 8px; background: var(--vscode-editorWidget-background, transparent); border-bottom: 1px solid var(--vscode-panel-border, rgba(128,128,128,.25)); flex-wrap: wrap; }
+.card-head .title { font-weight: 600; }
+.card-head .type { opacity: .7; font-size: 12px; }
+.card-head .actions { margin-left: auto; display: inline-flex; gap: 4px; }
+.card-error { padding: 4px 8px; background: var(--vscode-inputValidation-errorBackground, rgba(190, 17, 0, .18)); }
+.card-body { padding: 12px; overflow: auto; text-align: center; min-height: 24px; }
+.card-body svg { display: inline-block; }
+.card.stale .card-body { opacity: .4; filter: grayscale(.6); }
+
+/* Background choice: preview area and cards */
+body[data-bg="white"] #viewport, body[data-bg="white"] .card-body { background: #fff; }
+body[data-bg="custom"] #viewport, body[data-bg="custom"] .card-body { background: var(--mv-custom); }
+body[data-bg="transparent"] #viewport, body[data-bg="transparent"] .card-body {
+  background-color: var(--mv-bg);
+  background-image: linear-gradient(45deg, rgba(128,128,128,.18) 25%, transparent 25%, transparent 75%, rgba(128,128,128,.18) 75%), linear-gradient(45deg, rgba(128,128,128,.18) 25%, transparent 25%, transparent 75%, rgba(128,128,128,.18) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+}

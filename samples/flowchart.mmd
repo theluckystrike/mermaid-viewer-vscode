@@ -1,0 +1,16 @@
+flowchart TD
+  start([Order received]) --> check{Payment OK?}
+  check -- yes --> pack[Pack the items and print the shipping label for the courier]
+  check -- no --> retry[Ask the customer to pay again]
+  retry --> check
+  pack --> ship[(Warehouse)]
+  ship --> done((Delivered))
+  subgraph Returns
+    direction LR
+    r1[Return request] --> r2{Within 30 days?}
+    r2 -- yes --> r3[Refund]
+    r2 -- no --> r4[Decline]
+  end
+  done -.-> r1
+  classDef warn fill:#ffe4b5,stroke:#d2691e,color:#222
+  class retry,r4 warn

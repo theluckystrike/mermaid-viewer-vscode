@@ -1,0 +1,325 @@
+{
+  "name": "mermaid-viewer",
+  "displayName": "Mermaid Viewer & Mermaid Preview (MMD Diagram, No Sign-In)",
+  "description": "Free Mermaid viewer and Mermaid preview for .mmd files and mermaid blocks in Markdown. No sign-in, no AI, works offline. Zoom, pan, SVG and PNG export.",
+  "version": "0.1.0",
+  "publisher": "zovo",
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1E2A3A",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "mermaidVersion": "12.3.0",
+  "mermaidSha256": "336df803d87a38b70a01e736e666c8f7601d2ce42f5e47c8fafe5d721074b9a3",
+  "categories": [
+    "Visualization",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "mermaid",
+    "mmd",
+    "mermaid preview",
+    "mermaid viewer",
+    "mermaid diagram",
+    "flowchart",
+    "sequence diagram",
+    "gantt",
+    "mermaid export",
+    "mermaid png",
+    "mermaid svg",
+    "offline",
+    "no login",
+    "class diagram",
+    "state diagram",
+    "er diagram",
+    "mindmap",
+    "gitgraph",
+    "markdown",
+    "diagram",
+    "live preview",
+    "dark mode"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:mermaid",
+    "onLanguage:markdown",
+    "onWebviewPanel:mermaidViewer.preview"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "mermaid",
+        "aliases": [
+          "Mermaid",
+          "mermaid"
+        ],
+        "extensions": [
+          ".mmd",
+          ".mermaid"
+        ],
+        "configuration": "./syntaxes/mermaid.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mermaid",
+        "scopeName": "source.mermaid",
+        "path": "./syntaxes/mermaid.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "mermaidViewer.showPreviewToSide",
+        "title": "Open Preview to the Side",
+        "category": "Mermaid Viewer",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "mermaidViewer.showPreview",
+        "title": "Open Preview",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.openWalkthrough",
+        "title": "Get Started",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.supportDeveloper",
+        "title": "Support the developer",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.moreViewers",
+        "title": "More free viewers",
+        "category": "Mermaid Viewer"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "mermaidViewer.showPreviewToSide",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorTextFocus && mermaidViewer.isMermaid"
+      },
+      {
+        "command": "mermaidViewer.showPreview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorTextFocus && mermaidViewer.isMermaid"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "mermaidViewer.showPreviewToSide",
+          "when": "mermaidViewer.isMermaid || mermaidViewer.markdownHasMermaid || resourceExtname =~ /^\\.(mmd|mermaid)$/i",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "mermaidViewer.showPreviewToSide",
+          "when": "resourceExtname =~ /^\\.(mmd|mermaid)$/i",
+          "group": "navigation@9"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "mermaidViewer.showPreviewToSide",
+          "when": "mermaidViewer.isMermaid || mermaidViewer.markdownHasMermaid",
+          "group": "navigation@9"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mermaidViewer.showPreviewToSide",
+          "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+        },
+        {
+          "command": "mermaidViewer.showPreview",
+          "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Mermaid Viewer",
+      "properties": {
+        "mermaidViewer.theme": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "default",
+            "dark",
+            "forest",
+            "neutral",
+            "base"
+          ],
+          "enumDescriptions": [
+            "Follow VS Code: the dark Mermaid theme in dark editor themes, the default one in light themes.",
+            "Mermaid's default theme.",
+            "Mermaid's dark theme.",
+            "Mermaid's forest theme.",
+            "Mermaid's neutral theme, good for printing.",
+            "Mermaid's base theme, the one to change with themeVariables."
+          ],
+          "default": "auto",
+          "description": "Mermaid theme for new previews. A theme set in the diagram itself (%%{init}%% or front matter) wins. You can change it from the toolbar; that choice is kept for this workspace."
+        },
+        "mermaidViewer.background": {
+          "type": "string",
+          "enum": [
+            "theme",
+            "white",
+            "transparent",
+            "custom"
+          ],
+          "default": "theme",
+          "description": "Background of the preview and of exported files. You can change it from the toolbar; that choice is kept for this workspace."
+        },
+        "mermaidViewer.customBackground": {
+          "type": "string",
+          "default": "#f5f5f0",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The color used when the background is \"custom\", as #rrggbb."
+        },
+        "mermaidViewer.wheel": {
+          "type": "string",
+          "enum": [
+            "zoom",
+            "pan"
+          ],
+          "enumDescriptions": [
+            "The mouse wheel zooms at the pointer. Drag to pan.",
+            "The mouse wheel pans. Ctrl or Cmd plus the wheel zooms, and so does a trackpad pinch."
+          ],
+          "default": "zoom",
+          "description": "What the mouse wheel does in the diagram view."
+        },
+        "mermaidViewer.updateDelayMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "maximum": 5000,
+          "description": "How long to wait after you stop typing before the preview draws the diagram again."
+        },
+        "mermaidViewer.maxTextSize": {
+          "type": "number",
+          "default": 500000,
+          "minimum": 1000,
+          "maximum": 20000000,
+          "description": "Diagrams with more characters than this are not drawn, and the preview says so. Mermaid's own default is 50,000."
+        },
+        "mermaidViewer.maxEdges": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 100,
+          "maximum": 200000,
+          "description": "Diagrams with more links than this are not drawn, and the preview says so. Layout time grows fast with links: about 8 s for 2,000 and about a minute for 5,000 on a recent Mac. Raise mermaidViewer.renderTimeoutSeconds with it. Mermaid's own default is 500."
+        },
+        "mermaidViewer.renderTimeoutSeconds": {
+          "type": "number",
+          "default": 10,
+          "minimum": 2,
+          "maximum": 300,
+          "description": "A diagram that takes longer than this to draw is stopped, and the preview says so."
+        },
+        "mermaidViewer.languageIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "mermaid"
+          ],
+          "description": "Language ids that the preview treats as Mermaid, in addition to .mmd and .mermaid files. Add your own if you map other file types to Mermaid with files.associations."
+        },
+        "mermaidViewer.askForRating": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask for a Marketplace rating after you have used Mermaid Viewer on a few days. You can answer \"Later\" or \"No thanks\". Nothing is sent anywhere."
+        },
+        "mermaidViewer.showSupportLinks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the small Sponsor and More free viewers links at the bottom of the preview. The change shows in previews you open next. Nothing is sent anywhere."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "mermaidViewer.start",
+        "title": "Get started with Mermaid Viewer",
+        "description": "Preview Mermaid diagrams beside your text, zoom in, and save them as SVG or PNG. No account and no network.",
+        "steps": [
+          {
+            "id": "open",
+            "title": "Open the preview",
+            "description": "Open a .mmd file, or a Markdown file with a mermaid block, and click the preview icon in the editor title. Cmd+K V (Ctrl+K V) does the same.\n[Find a .mmd file](command:workbench.action.quickOpen?%5B%22.mmd%22%5D)",
+            "media": {
+              "markdown": "walkthrough/open.md"
+            },
+            "completionEvents": [
+              "onCommand:mermaidViewer.showPreviewToSide"
+            ]
+          },
+          {
+            "id": "navigate",
+            "title": "Zoom and pan",
+            "description": "Scroll to zoom at the pointer, drag to pan. Fit and 100% are in the toolbar, and the keys 0 and 1 do the same.",
+            "media": {
+              "markdown": "walkthrough/navigate.md"
+            }
+          },
+          {
+            "id": "export",
+            "title": "Save SVG or PNG",
+            "description": "Export saves SVG or PNG. Pick 1x, 2x or 4x and an optional largest width or height, or copy the PNG to the clipboard.",
+            "media": {
+              "markdown": "walkthrough/export.md"
+            }
+          },
+          {
+            "id": "settings",
+            "title": "Theme, background and limits",
+            "description": "Pick the Mermaid theme, the background and the size limits for big diagrams.\n[Open settings](command:workbench.action.openSettings?%5B%22mermaidViewer%22%5D)",
+            "media": {
+              "markdown": "walkthrough/settings.md"
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.openSettings"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node scripts/build.js && node --test \"test/*.test.js\"",
+    "samples": "node scripts/make-samples.mjs samples",
+    "package": "node scripts/build.js && npx -y @vscode/vsce package --no-dependencies -o dist/"
+  },
+  "homepage": "https://github.com/theluckystrike/mermaid-viewer-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/theluckystrike/mermaid-viewer-vscode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theluckystrike/mermaid-viewer-vscode"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/theluckystrike"
+  }
+}

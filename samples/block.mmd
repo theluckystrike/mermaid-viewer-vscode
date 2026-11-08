@@ -1,0 +1,10 @@
+block-beta
+  columns 3
+  frontend["Web app"] api["API"] db[("Database")]
+  space:3
+  queue["Queue"] worker["Worker"] store[("Object store")]
+  frontend --> api
+  api --> db
+  api --> queue
+  queue --> worker
+  worker --> store

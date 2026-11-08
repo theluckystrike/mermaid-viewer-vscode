@@ -1,0 +1,7 @@
+C4Context
+  title System context for a file viewer
+  Person(dev, "Developer", "Writes diagrams in VS Code")
+  System(ext, "Mermaid Viewer", "Draws diagrams inside VS Code")
+  System_Ext(fs, "Workspace files", "The .mmd and .md files")
+  Rel(dev, ext, "Opens the preview")
+  Rel(ext, fs, "Reads the open text")

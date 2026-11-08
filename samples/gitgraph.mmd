@@ -1,0 +1,11 @@
+gitGraph
+  commit id: "init"
+  commit id: "parser"
+  branch feature/export
+  checkout feature/export
+  commit id: "svg"
+  commit id: "png"
+  checkout main
+  commit id: "fix"
+  merge feature/export
+  commit id: "release" tag: "v0.1.0"
