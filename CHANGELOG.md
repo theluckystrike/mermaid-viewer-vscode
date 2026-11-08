@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (2026-11-08)
+
+- Listing name and short description only: "Mermaid Diagram Viewer & Mermaid Preview (MMD, Offline)". No code change.
+
 ## 0.1.0
 
 - First release. Live preview of Mermaid diagrams in `.mmd` and `.mermaid` files and in Markdown `mermaid` blocks, with Mermaid 12.3.0 bundled.

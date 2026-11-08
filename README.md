@@ -1,4 +1,4 @@
-# Mermaid Viewer & Mermaid Preview
+# Mermaid Diagram Viewer & Mermaid Preview
 
 Free, no sign-in, works offline. A live Mermaid preview for `.mmd` files and for `mermaid` blocks in Markdown, with zoom, pan and SVG or PNG export. No account, no AI and no network.
 

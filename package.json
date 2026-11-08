@@ -1,8 +1,8 @@
 {
   "name": "mermaid-viewer",
-  "displayName": "Mermaid Viewer & Mermaid Preview (MMD Diagram, No Sign-In)",
-  "description": "Free Mermaid viewer and Mermaid preview for .mmd files and mermaid blocks in Markdown. No sign-in, no AI, works offline. Zoom, pan, SVG and PNG export.",
-  "version": "0.1.0",
+  "displayName": "Mermaid Diagram Viewer & Mermaid Preview (MMD, Offline)",
+  "description": "No sign-in, no AI. Zoom, pan and export SVG or PNG. Free Mermaid diagram viewer and Mermaid preview for .mmd files and mermaid blocks in Markdown, works offline.",
+  "version": "0.1.1",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
