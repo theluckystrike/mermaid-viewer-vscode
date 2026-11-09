@@ -26,7 +26,7 @@ function createPro({ vscode, context, enabled = PRO_ENABLED, license }) {
     async gate(feature, detail) {
       if (!enabled) return true;
       await lic.ready;
-      return lic.requirePro(feature, detail || 'Zovo Pro is USD 15 once and unlocks the Pro features in every Zovo viewer. Opening, editing, previewing and exporting one diagram stay free.');
+      return lic.requirePro(feature, detail || 'Zovo Pro is USD 19 once and unlocks the Pro features in every Zovo viewer. Opening, editing, previewing and exporting one diagram stay free.');
     },
     onDidChange(fn) { listeners.add(fn); return { dispose: () => listeners.delete(fn) }; },
   };
