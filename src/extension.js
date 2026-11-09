@@ -100,6 +100,7 @@ class Preview {
       styleUri: wv.asWebviewUri(vscode.Uri.joinPath(media, 'preview.css')).toString(),
       title: this.fileName, theme: p.theme, background: p.background, custom: p.custom, mermaidVersion: MERMAID_VERSION,
       showSupportLinks: showLinks(vscode, SECTION),
+      pdf: this.manager.pdfMode ? this.manager.pdfMode() : 'free',
     });
   }
 
@@ -420,6 +421,8 @@ function activate(context) {
   registerSupport({ vscode, context, prefix: SECTION, selfId: EXT_ID });
   rating = createRatingPrompt({ vscode, context, extensionId: EXT_ID, section: SECTION, name: 'Mermaid Viewer' });
   const pro = createPro({ vscode, context });
+  // The Save PDF button in the preview: a small "Pro" tag until unlocked; hidden with showProFeatures = false.
+  manager.pdfMode = () => (pro.has() ? 'free' : (vscode.workspace.getConfiguration(SECTION).get('showProFeatures', true) === false ? 'hide' : 'pro'));
   const setting = (k, d) => vscode.workspace.getConfiguration(SECTION).get(k, d);
 
   const openCmd = side => async arg => {
@@ -508,6 +511,7 @@ function activate(context) {
     vscode.commands.registerCommand('mermaidViewer.exportOnSave', () => batch.configureExportOnSave()),
     vscode.commands.registerCommand('mermaidViewer.exportOnSaveUnlock', () => batch.unlockExportOnSave()),
     { dispose: () => batch.disposeSave() },
+    pro.onDidChange(() => { for (const p of manager.previews.values()) if (!p.notice) p.load(); }),
     vscode.commands.registerCommand('mermaidViewer.openWalkthrough', () => vscode.commands.executeCommand('workbench.action.openWalkthrough', `${EXT_ID}#mermaidViewer.start`, false)),
     vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
       async deserializeWebviewPanel(panel, state) {

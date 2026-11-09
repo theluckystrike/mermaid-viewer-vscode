@@ -60,3 +60,11 @@ test('stopped page has no script at all and escapes the message', () => {
   assert.match(h, /&lt;img src=y onerror=z&gt;/);
   assert.match(h, /<h3>Not drawn<\/h3>/);
 });
+
+test('0.3.0: the Save PDF button has a Pro tag while locked and disappears with showProFeatures = false', () => {
+  const base = { cspSource: 'vscode-res:', scriptUri: 's.js', mermaidUri: 'm.js', toolsUri: 't.js', styleUri: 'c.css', title: 'a.mmd', theme: 'auto', background: 'theme', custom: '#ffffff', mermaidVersion: '12.3.0' };
+  const { buildHtml } = require('../src/html.js');
+  assert.match(buildHtml(Object.assign({ pdf: 'pro' }, base)), /id="savePdf"[^>]*>Save PDF <span class="pro">Pro<\/span>/);
+  assert.match(buildHtml(Object.assign({ pdf: 'free' }, base)), /id="savePdf"[^>]*>Save PDF<\/button>/);
+  assert.doesNotMatch(buildHtml(Object.assign({ pdf: 'hide' }, base)), /savePdf/);
+});

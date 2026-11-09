@@ -29,7 +29,7 @@ const BACKGROUNDS = [['theme', 'Editor color'], ['white', 'White'], ['transparen
 const opts = (list, cur) => list.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`).join('');
 
 /**
- * o: { cspSource, scriptUri, mermaidUri, toolsUri, styleUri, title, theme, background, custom, mermaidVersion, showSupportLinks, nonce? }
+ * o: { cspSource, scriptUri, mermaidUri, toolsUri, styleUri, title, theme, background, custom, mermaidVersion, showSupportLinks, pdf ('free' | 'pro' | 'hide'), nonce? }
  */
 function buildHtml(o) {
   const nonce = o.nonce || crypto.randomBytes(16).toString('base64');
@@ -79,7 +79,7 @@ ${footer ? `<style nonce="${esc(nonce)}">${FOOTER_CSS}\n.zovo-support{flex:0 0 a
       <button id="copyPng">Copy PNG</button>
       <button id="saveSvg">Save SVG</button>
       <button id="copySvg">Copy SVG code</button>
-      <button id="savePdf" title="All diagrams of this file in one PDF, with a title page">Save PDF</button>
+      ${o.pdf === 'hide' ? '' : `<button id="savePdf" title="All diagrams of this file in one PDF, with a title page${o.pdf === 'pro' ? '. Zovo Pro tool with 3 free tries.' : ''}">Save PDF${o.pdf === 'pro' ? ' <span class="pro">Pro</span>' : ''}</button>`}
     </div>
   </div>
   <div id="problem" class="hidden" role="alert"></div>

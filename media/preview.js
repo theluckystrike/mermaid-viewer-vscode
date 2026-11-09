@@ -374,7 +374,7 @@
   $('copyPng').addEventListener('click', () => { toggleMenu(false); exportPng(exportIndex(), true); });
   $('saveSvg').addEventListener('click', () => { toggleMenu(false); exportSvg(exportIndex()); });
   $('copySvg').addEventListener('click', async () => { toggleMenu(false); const s = await svgFile(exportIndex()); if (s) vscode.postMessage({ type: 'copySvg', svg: s.text }); });
-  $('savePdf').addEventListener('click', () => { toggleMenu(false); vscode.postMessage({ type: 'exportPdf' }); });
+  if ($('savePdf')) $('savePdf').addEventListener('click', () => { toggleMenu(false); vscode.postMessage({ type: 'exportPdf' }); });
   function exportIndex() { return single() ? currentIndex() : (focusIndex >= 0 ? focusIndex : (doc.items[0] ? doc.items[0].index : 0)); }
 
   // ---------- export ----------
