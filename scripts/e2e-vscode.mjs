@@ -310,7 +310,12 @@ try {
 
   await step('huge-unopened.mmd (2.5 MB) from the Explorer right-click menu: the file is not read, a notice shows', async () => {
     await closeAll();
-    const row = JSON.parse(await vs.wbEval(`(() => { const r = [...document.querySelectorAll('.explorer-folders-view .monaco-list-row')].find(e => (e.getAttribute('aria-label') || '').startsWith('huge-unopened.mmd')); if (!r) return 'null'; r.scrollIntoView({ block: 'center' }); const b = r.getBoundingClientRect(); return JSON.stringify({ x: b.x + 40, y: b.y + b.height / 2 }); })()`));
+    // The Explorer list is virtual: scroll the row into view, wait, then read its place again and check that the
+    // point really is that row before the right-click (more sample files since 0.2.0 moved it down).
+    const rowAt = () => vs.wbEval(`(() => { const r = [...document.querySelectorAll('.explorer-folders-view .monaco-list-row')].find(e => (e.getAttribute('aria-label') || '').startsWith('huge-unopened.mmd')); if (!r) return 'null'; const b = r.getBoundingClientRect(); const x = b.x + 40, y = b.y + b.height / 2; const hit = document.elementFromPoint(x, y); return JSON.stringify({ x, y, ok: !!hit && r.contains(hit) }); })()`);
+    await vs.wbEval(`(() => { const r = [...document.querySelectorAll('.explorer-folders-view .monaco-list-row')].find(e => (e.getAttribute('aria-label') || '').startsWith('huge-unopened.mmd')); if (r) r.scrollIntoView({ block: 'center' }); return 1; })()`);
+    await sleep(600);
+    const row = await vs.waitFor(async () => { const v = JSON.parse(await rowAt()); return v && v.ok ? v : null; }, 5000, 200);
     if (!row) throw new Error('no Explorer row');
     let item = null;
     for (let i = 0; i < 3 && !item; i++) {
@@ -389,7 +394,8 @@ try {
     let rows = [];
     for (let i = 0; i < 3; i++) {
       await vs.command('Mermaid Viewer: More free viewers');
-      rows = await vs.waitFor(async () => { const r = await readRows(); return r.some(x => /Graphviz/.test(x)) ? r : null; }, 4000) || [];
+      // The list starts with the extensions most related to this one (picked by monetize.py), then all the others.
+      rows = await vs.waitFor(async () => { const r = await readRows(); return r.filter(x => /Viewer|Preview|Reader/.test(x)).length >= 3 ? r : null; }, 4000) || [];
       if (rows.length) break;
       await vs.key('Escape', 'Escape'); R.paletteRetries = (R.paletteRetries || 0) + 1;
     }

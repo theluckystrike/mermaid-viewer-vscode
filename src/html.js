@@ -29,7 +29,7 @@ const BACKGROUNDS = [['theme', 'Editor color'], ['white', 'White'], ['transparen
 const opts = (list, cur) => list.map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`).join('');
 
 /**
- * o: { cspSource, scriptUri, mermaidUri, styleUri, title, theme, background, custom, mermaidVersion, showSupportLinks, nonce? }
+ * o: { cspSource, scriptUri, mermaidUri, toolsUri, styleUri, title, theme, background, custom, mermaidVersion, showSupportLinks, nonce? }
  */
 function buildHtml(o) {
   const nonce = o.nonce || crypto.randomBytes(16).toString('base64');
@@ -69,14 +69,17 @@ ${footer ? `<style nonce="${esc(nonce)}">${FOOTER_CSS}\n.zovo-support{flex:0 0 a
       <label><input type="radio" name="scale" value="1"> 1x</label>
       <label><input type="radio" name="scale" value="2" checked> 2x</label>
       <label><input type="radio" name="scale" value="4"> 4x</label></div>
-    <div class="row"><label class="lbl" for="maxW">Max width</label><input id="maxW" type="number" min="16" max="32000" step="1" placeholder="none"> px</div>
-    <div class="row"><label class="lbl" for="maxH">Max height</label><input id="maxH" type="number" min="16" max="32000" step="1" placeholder="none"> px</div>
+    <div class="row"><label class="lbl" for="maxW">Width</label><input id="maxW" type="number" min="16" max="32000" step="1" placeholder="auto"> px</div>
+    <div class="row"><label class="lbl" for="maxH">Height</label><input id="maxH" type="number" min="16" max="32000" step="1" placeholder="auto"> px</div>
+    <div class="row note">Width or height gives that exact size. Both: the largest size that fits. Empty: the scale.</div>
     <div class="row note" id="pngSize"></div>
+    <div class="row"><label title="Draw labels as SVG text instead of HTML. Azure DevOps and some wikis and image tools drop HTML labels."><input id="svgText" type="checkbox"> Text labels for wikis (Azure DevOps, GitHub)</label></div>
     <div class="row actions">
       <button id="savePng" class="primary">Save PNG</button>
       <button id="copyPng">Copy PNG</button>
       <button id="saveSvg">Save SVG</button>
       <button id="copySvg">Copy SVG code</button>
+      <button id="savePdf" title="All diagrams of this file in one PDF, with a title page">Save PDF</button>
     </div>
   </div>
   <div id="problem" class="hidden" role="alert"></div>
@@ -88,9 +91,25 @@ ${footer ? `<style nonce="${esc(nonce)}">${FOOTER_CSS}\n.zovo-support{flex:0 0 a
   ${footer}
 </div>
 <script nonce="${nonce}" src="${esc(o.mermaidUri)}"></script>
+<script nonce="${nonce}" src="${esc(o.toolsUri)}"></script>
 <script nonce="${nonce}" src="${esc(o.scriptUri)}"></script>
 </body>
 </html>`;
+}
+
+/** The "Mermaid export" page used by batch and PDF export: draws one diagram per message, shows progress. */
+function batchHtml(o) {
+  const nonce = o.nonce || crypto.randomBytes(16).toString('base64');
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="${esc(csp(o.cspSource, nonce))}">
+<style nonce="${esc(nonce)}">body{font-family:var(--vscode-font-family);font-size:var(--vscode-font-size);color:var(--vscode-foreground);background:var(--vscode-editor-background);padding:12px 16px}#log{font-family:var(--vscode-editor-font-family);font-size:12px;white-space:pre-wrap;opacity:.85}#stage{position:absolute;left:-100000px;top:0;visibility:hidden}</style>
+<title>Mermaid export</title></head>
+<body><div id="app"><h3>Mermaid export</h3><p>Drawing the diagrams one by one on this computer. This panel closes when the export is done.</p><div id="count"></div><div id="log"></div><div id="stage"></div></div>
+<script nonce="${nonce}" src="${esc(o.mermaidUri)}"></script>
+<script nonce="${nonce}" src="${esc(o.toolsUri)}"></script>
+<script nonce="${nonce}" src="${esc(o.scriptUri)}"></script>
+</body></html>`;
 }
 
 /** A page with no script at all, shown after a render ran over the time limit. */
@@ -103,4 +122,4 @@ function stoppedHtml(o) {
 </head><body><h3>${esc(o.heading || 'Drawing stopped')}</h3><p>${esc(o.message)}</p><p>${esc(o.hint || 'Change the file, or close this preview and open it again, to try once more.')}</p></body></html>`;
 }
 
-module.exports = { buildHtml, stoppedHtml, csp, esc, THEMES, BACKGROUNDS };
+module.exports = { buildHtml, batchHtml, stoppedHtml, csp, esc, THEMES, BACKGROUNDS };

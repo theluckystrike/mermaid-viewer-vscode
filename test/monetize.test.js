@@ -11,7 +11,7 @@ test('More free viewers starts with 3 to 5 related extensions, without this one'
   const rel = support.relatedProducts(SELF);
   assert.ok(rel.length >= 3 && rel.length <= 5, String(rel.length));
   assert.ok(rel.every((p) => p.id !== SELF));
-  assert.deepEqual(rel.map((p) => p.id), ["zovo.zovo-graphviz-preview", "zovo.pdf-viewer-dark", "zovo.docx-viewer-vscode", "zovo.pptx-slide-viewer", "zovo.zovo-json-tree-viewer"]);
+  assert.deepEqual(rel.map((p) => p.id), ["zovo.pdf-viewer-dark", "zovo.table-viewer-vscode", "zovo.docx-viewer-vscode"]);
   const items = support.pickItems(SELF, () => false);
   assert.equal(items[0].label, 'Related to this extension');
   assert.deepEqual(items.slice(1, 1 + rel.length).map((i) => i.product.id), rel.map((p) => p.id));
@@ -60,4 +60,8 @@ test('picking an extension opens its Marketplace page and never installs it', as
   await s.moreViewers();
   assert.ok(opened.includes('https://github.com/theluckystrike'));
   assert.equal(ran.filter((a) => a[0] === 'workbench.extensions.installExtension').length, 0);
+});
+
+test('the extension pack is not a Related row here', () => {
+  assert.ok(!support.relatedProducts(SELF).some((p) => p.id === 'zovo.zovo-file-viewers'));
 });

@@ -7,12 +7,13 @@
   const $ = id => document.getElementById(id);
   const viewport = $('viewport'), stage = $('stage'), list = $('list'), empty = $('empty'), problemBox = $('problem');
   const blockSel = $('block'), themeSel = $('theme'), bgSel = $('bg'), bgColor = $('bgColor'), info = $('info'), zoomLabel = $('zoomLabel');
-  const exportBtn = $('exportBtn'), exportMenu = $('exportMenu'), maxW = $('maxW'), maxH = $('maxH'), pngSize = $('pngSize');
+  const exportBtn = $('exportBtn'), exportMenu = $('exportMenu'), maxW = $('maxW'), maxH = $('maxH'), pngSize = $('pngSize'), svgTextBox = $('svgText');
   const mermaid = window.mermaid || (window.__esbuild_esm_mermaid_nm && window.__esbuild_esm_mermaid_nm.mermaid);
+  const ST = window.MermaidSvgTools;
 
   const st = Object.assign({ view: { x: 0, y: 0, k: 1, fitted: true } }, vscode.getState() || {});
   let view = st.view;
-  let prefs = { theme: 'auto', background: 'theme', custom: '#f5f5f0', scale: 2, maxW: 0, maxH: 0, wheel: 'zoom', choice: -1 };
+  let prefs = { theme: 'auto', background: 'theme', custom: '#f5f5f0', scale: 2, maxW: 0, maxH: 0, svgText: false, wheel: 'auto', choice: -1 };
   let limits = { maxTextSize: 500000, maxEdges: 2000 };
   let doc = { items: [], markdown: false, fileName: '' };
   // Last good render per item index: { svg (clean string), w, h, type, ms }
@@ -20,41 +21,9 @@
   const errors = new Map();
   let seq = 0, renderedSeq = 0, size = null, firstFit = true, lastKey = '', focusIndex = -1, fontsReady = false;
 
-  // ---------- cleaning ----------
-  const BAD = 'script,iframe,object,embed,link,meta,base,audio,video,frame,frameset,applet,form,input,button,textarea,select';
-  function clean(root) {
-    root.querySelectorAll(BAD).forEach(n => n.remove());
-    root.querySelectorAll('img,image').forEach(n => {
-      const src = n.getAttribute('src') || n.getAttribute('href') || n.getAttribute('xlink:href') || '';
-      if (!/^data:image\/(png|gif|jpeg|webp);/i.test(src)) n.remove();
-    });
-    const all = [root, ...root.querySelectorAll('*')];
-    for (const el of all) {
-      for (const a of Array.from(el.attributes || [])) {
-        const n = a.name.toLowerCase(), v = a.value;
-        if (n.startsWith('on')) el.removeAttribute(a.name);
-        else if ((n === 'href' || n === 'xlink:href' || n === 'src' || n === 'action' || n === 'formaction') && !/^#/.test(v) && !(el.localName === 'image' && /^data:image\//i.test(v))) el.removeAttribute(a.name);
-        else if (n === 'style' && /url\s*\(\s*['"]?\s*(?!#|data:)/i.test(v)) el.removeAttribute(a.name);
-      }
-    }
-    root.querySelectorAll('style').forEach(s => { if (/@import|url\s*\(\s*['"]?\s*(?!#|data:)/i.test(s.textContent)) s.textContent = s.textContent.replace(/@import[^;]*;?/gi, '').replace(/url\s*\(\s*['"]?\s*(?!#|data:)[^)]*\)/gi, 'none'); });
-    return root;
-  }
-  /** Parse Mermaid's SVG string with the inert template parser, clean it, return the <svg> element. */
-  function toSvgElement(svgText) {
-    const t = document.createElement('template');
-    t.innerHTML = svgText;
-    const svg = t.content.querySelector('svg');
-    if (!svg) throw new Error('Mermaid returned no SVG.');
-    clean(svg);
-    return document.importNode(svg, true);
-  }
-  function svgSize(svg) {
-    const vb = svg.viewBox && svg.viewBox.baseVal;
-    if (vb && vb.width > 0 && vb.height > 0) return { w: vb.width, h: vb.height };
-    const w = parseFloat(svg.getAttribute('width')) || 400, h = parseFloat(svg.getAttribute('height')) || 300;
-    return { w, h };
-  }
+  // ---------- cleaning (shared with the export page: media/svgtools.js) ----------
+  const toSvgElement = svgText => ST.toSvgElement(svgText);
+  const svgSize = svg => ST.svgSize(svg);
 
   // ---------- theme / background ----------
   function isDarkUi() { const c = document.body.classList; return c.contains('vscode-dark') || (c.contains('vscode-high-contrast') && !c.contains('vscode-high-contrast-light')); }
@@ -82,23 +51,14 @@
 
   // ---------- rendering ----------
   let lastTheme = '';
-  function configure() {
+  function configure(plain) {
     const theme = mermaidTheme();
-    lastTheme = theme;
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering', 'maxEdges', 'dompurifyConfig'],
-      // Labels may not carry images, styles or embedded content: Mermaid would put them in the page while it draws.
-      dompurifyConfig: { FORBID_TAGS: ['img', 'image', 'picture', 'source', 'style', 'link', 'iframe', 'frame', 'object', 'embed', 'video', 'audio', 'form', 'input', 'button', 'textarea', 'select', 'meta', 'base'], FORBID_ATTR: ['srcset', 'background', 'poster', 'formaction'] },
-      suppressErrorRendering: true,
-      maxTextSize: limits.maxTextSize,
-      maxEdges: limits.maxEdges,
-      theme,
-      darkMode: theme === 'dark' || (theme === 'base' && darkSurface()),
-      fontFamily: '"trebuchet ms", verdana, arial, sans-serif',
-    });
+    if (!plain) lastTheme = theme;
+    mermaid.initialize(ST.mermaidConfig({ theme, darkMode: theme === 'dark' || (theme === 'base' && darkSurface()), maxTextSize: limits.maxTextSize, maxEdges: limits.maxEdges, plain: !!plain }));
   }
+  // One Mermaid call at a time: an export with text labels sets other options, then puts the normal ones back.
+  let queue = Promise.resolve();
+  const exclusive = fn => { const r = queue.then(fn, fn); queue = r.catch(() => {}); return r; };
 
   async function renderOne(item, s) {
     const id = `mv-${s}-${item.index}`;
@@ -106,14 +66,14 @@
     try {
       if (item.refuse) throw Object.assign(new Error(item.refuse), { refuse: true });
       if (!item.text.trim()) throw Object.assign(new Error('This diagram is empty.'), { empty: true });
-      const parsed = await mermaid.parse(item.text);
-      const out = await mermaid.render(id, item.text);
+      // render() parses the text itself; a separate parse() first would cost about 100 ms more on a 300-node flowchart.
+      const out = await exclusive(async () => { configure(false); return mermaid.render(id, item.text); });
       const el = toSvgElement(out.svg);
       const sz = svgSize(el);
       const ms = Math.round(performance.now() - t0);
-      good.set(item.index, { svg: el.outerHTML, w: sz.w, h: sz.h, type: (parsed && parsed.diagramType) || out.diagramType || '', ms });
+      good.set(item.index, { svg: el.outerHTML, w: sz.w, h: sz.h, type: out.diagramType || '', ms });
       errors.delete(item.index);
-      return { index: item.index, ok: true, ms, type: (parsed && parsed.diagramType) || out.diagramType || '' };
+      return { index: item.index, ok: true, ms, type: out.diagramType || '' };
     } catch (err) {
       const message = String((err && (err.message || err.str)) || err || 'Unknown error');
       errors.set(item.index, { message, refuse: !!(err && err.refuse), empty: !!(err && err.empty) });
@@ -128,7 +88,7 @@
     const s = ++seq;
     if (!mermaid) { showProblem([{ message: 'The Mermaid library did not load.' }]); return; }
     if (!fontsReady) { try { await document.fonts.ready; } catch {} fontsReady = true; }
-    configure();
+    lastTheme = mermaidTheme();
     info.textContent = ' · drawing…';
     const results = [];
     const order = doc.items.map(it => it.index);
@@ -345,10 +305,21 @@
   const endDrag = () => { drag = null; viewport.classList.remove('panning'); };
   viewport.addEventListener('pointerup', endDrag);
   viewport.addEventListener('pointercancel', endDrag);
+  // Trackpad or mouse? A mouse wheel moves in steps of 120 (wheelDelta) and never sideways; a trackpad sends
+  // small, uneven steps and sideways moves. One gesture keeps its first answer for 300 ms.
+  let wheelKind = '', wheelAt = 0;
+  function trackpad(e) {
+    const now = performance.now();
+    if (now - wheelAt < 300 && wheelKind) { wheelAt = now; return wheelKind === 'pad'; }
+    const wd = e.wheelDeltaY || e.wheelDelta || 0;
+    const pad = e.deltaMode === 0 && (e.deltaX !== 0 || (wd !== 0 && wd % 120 !== 0));
+    wheelKind = pad ? 'pad' : 'mouse'; wheelAt = now;
+    return pad;
+  }
   viewport.addEventListener('wheel', e => {
     e.preventDefault();
     const r = viewport.getBoundingClientRect();
-    const zoom = e.ctrlKey || e.metaKey || prefs.wheel !== 'pan';
+    const zoom = e.ctrlKey || e.metaKey || prefs.wheel === 'zoom' || (prefs.wheel === 'auto' && !trackpad(e));
     if (zoom) {
       const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
       zoomAt(Math.exp(-d * (e.ctrlKey && !e.metaKey && Math.abs(d) < 30 ? 0.02 : 0.0025)), e.clientX - r.left, e.clientY - r.top);
@@ -371,7 +342,7 @@
   window.addEventListener('resize', () => { if (view.fitted && single()) fit(); });
 
   // ---------- toolbar ----------
-  function savePrefs() { vscode.postMessage({ type: 'prefs', prefs: { theme: prefs.theme, background: prefs.background, custom: prefs.custom, scale: prefs.scale, maxW: prefs.maxW, maxH: prefs.maxH, choice: prefs.choice } }); }
+  function savePrefs() { vscode.postMessage({ type: 'prefs', prefs: { theme: prefs.theme, background: prefs.background, custom: prefs.custom, scale: prefs.scale, maxW: prefs.maxW, maxH: prefs.maxH, svgText: prefs.svgText, choice: prefs.choice } }); }
   themeSel.addEventListener('change', () => { prefs.theme = themeSel.value; savePrefs(); good.clear(); renderAll(); });
   // With the "auto" Mermaid theme, a change between a light and a dark surface draws the diagrams again.
   function bgChanged() { const before = lastTheme; applyBg(); savePrefs(); if (mermaidTheme() !== before && doc.items.length) { good.clear(); renderAll(); } }
@@ -398,49 +369,49 @@
   exportMenu.querySelectorAll('input[name="scale"]').forEach(r => r.addEventListener('change', () => { prefs.scale = Number(r.value); updatePngSize(); savePrefs(); }));
   const num = el => { const v = Math.floor(Number(el.value)); return v >= 16 && v <= 32000 ? v : 0; };
   for (const el of [maxW, maxH]) el.addEventListener('input', () => { prefs.maxW = num(maxW); prefs.maxH = num(maxH); updatePngSize(); savePrefs(); });
+  svgTextBox.addEventListener('change', () => { prefs.svgText = svgTextBox.checked; savePrefs(); });
   $('savePng').addEventListener('click', () => { toggleMenu(false); exportPng(exportIndex(), false); });
   $('copyPng').addEventListener('click', () => { toggleMenu(false); exportPng(exportIndex(), true); });
   $('saveSvg').addEventListener('click', () => { toggleMenu(false); exportSvg(exportIndex()); });
-  $('copySvg').addEventListener('click', () => { toggleMenu(false); const s = svgForExport(exportIndex(), 1); if (s) vscode.postMessage({ type: 'copySvg', svg: s.text }); });
+  $('copySvg').addEventListener('click', async () => { toggleMenu(false); const s = await svgFile(exportIndex()); if (s) vscode.postMessage({ type: 'copySvg', svg: s.text }); });
+  $('savePdf').addEventListener('click', () => { toggleMenu(false); vscode.postMessage({ type: 'exportPdf' }); });
   function exportIndex() { return single() ? currentIndex() : (focusIndex >= 0 ? focusIndex : (doc.items[0] ? doc.items[0].index : 0)); }
 
   // ---------- export ----------
-  /** PNG pixel size for a diagram of w x h: scale, then shrink to fit max width / height, then a 16k / 128 MP cap. */
-  function pngDims(w, h) {
-    let s = prefs.scale || 2;
-    if (prefs.maxW && w * s > prefs.maxW) s = prefs.maxW / w;
-    if (prefs.maxH && h * s > prefs.maxH) s = prefs.maxH / h;
-    s = Math.min(s, 16384 / w, 16384 / h, Math.sqrt(128e6 / (w * h)));
-    return { w: Math.max(1, Math.round(w * s)), h: Math.max(1, Math.round(h * s)), s };
-  }
+  /** PNG pixel size: Width only gives exactly that width, Height only exactly that height, both the largest size
+   * that fits in that box; with neither, the scale. Capped at 16,384 px a side and 128 megapixels. */
+  function pngDims(w, h) { return ST.pngDims(w, h, { scale: prefs.scale || 2, width: prefs.maxW, height: prefs.maxH }); }
   function updatePngSize() {
     const g = good.get(exportIndex());
     if (!g) { pngSize.textContent = 'Nothing drawn yet.'; return; }
     const d = pngDims(g.w, g.h);
-    pngSize.textContent = `PNG size: ${d.w} × ${d.h} px` + (Math.abs(d.s - (prefs.scale || 2)) > 1e-6 ? ` (scaled to ${d.s.toFixed(2)}x)` : '');
+    const how = prefs.maxW && prefs.maxH ? 'fits the box' : prefs.maxW ? 'set width' : prefs.maxH ? 'set height' : `${prefs.scale || 2}x`;
+    pngSize.textContent = `PNG size: ${d.w} × ${d.h} px (${how}${d.capped ? ', capped at the canvas limit' : ''})`;
   }
-  function svgForExport(index, scale, dims) {
+  let lastExport = null;
+  /** The SVG text a file gets. With "text labels" the diagram is drawn once more with plain SVG text. A PNG always
+   * uses text labels when the diagram has HTML labels: the browser refuses to export a canvas that drew HTML in SVG. */
+  async function svgFile(index, dims, forImage) {
     const g = good.get(index);
     if (!g) { vscode.postMessage({ type: 'warn', message: 'There is no drawn diagram to export yet.' }); return null; }
-    const el = toSvgElement(g.svg);
-    el.removeAttribute('style');
-    el.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    el.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-    const w = dims ? dims.w : Math.ceil(g.w * scale), h = dims ? dims.h : Math.ceil(g.h * scale);
-    el.setAttribute('width', String(w)); el.setAttribute('height', String(h));
-    if (!el.getAttribute('viewBox')) el.setAttribute('viewBox', `0 0 ${g.w} ${g.h}`);
-    const bg = bgColorValue();
-    if (bg) {
-      const vb = el.viewBox.baseVal;
-      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      r.setAttribute('x', String(vb.x)); r.setAttribute('y', String(vb.y)); r.setAttribute('width', String(vb.width)); r.setAttribute('height', String(vb.height));
-      r.setAttribute('fill', bg); r.setAttribute('class', 'mv-background');
-      el.insertBefore(r, el.firstChild);
+    let svg = g.svg;
+    if (prefs.svgText || (forImage && g.svg.includes('<foreignObject'))) {
+      const it = doc.items.find(x => x.index === index);
+      const id = `mvx-${++exportSeq}`;
+      try {
+        svg = await exclusive(async () => { configure(true); try { return (await mermaid.render(id, it.text)).svg; } finally { configure(false); } });
+      } catch (err) {
+        vscode.postMessage({ type: 'error', message: 'SVG export with text labels failed: ' + String(err && err.message || err).slice(0, 300) });
+        return null;
+      } finally { for (const n of document.querySelectorAll(`#d${id}, #${id}, #i${id}`)) n.remove(); }
     }
-    return { text: new XMLSerializer().serializeToString(el), w, h };
+    const out = ST.exportSvg(svg, { w: dims && dims.w, h: dims && dims.h, bg: bgColorValue() });
+    lastExport = { index, raw: g.svg.length, bytes: out.text.length, foreignObject: (out.text.match(/<foreignObject/g) || []).length, external: ST.externalRefs(out.text).length, text: !!prefs.svgText };
+    return out;
   }
-  function exportSvg(index) {
-    const s = svgForExport(index, 1);
+  let exportSeq = 0;
+  async function exportSvg(index) {
+    const s = await svgFile(index);
     if (s) vscode.postMessage({ type: 'saveSvg', svg: s.text, index });
   }
   async function exportPng(index, copy) {
@@ -448,8 +419,9 @@
       const g = good.get(index);
       if (!g) { vscode.postMessage({ type: 'warn', message: 'There is no drawn diagram to export yet.' }); return; }
       const d = pngDims(g.w, g.h);
-      const s = svgForExport(index, 1, d);
-      const blob = await drawPng(s.text, d.w, d.h);
+      const s = await svgFile(index, d, true);
+      if (!s) return;
+      const blob = await ST.drawImage(s.text, d.w, d.h, 'image/png');
       if (copy) {
         let done = false;
         try {
@@ -457,31 +429,30 @@
         } catch {}
         if (done) { vscode.postMessage({ type: 'copied', what: 'PNG', w: d.w, h: d.h }); return; }
       }
-      vscode.postMessage({ type: copy ? 'copyPng' : 'savePng', data: await b64(blob), index, w: d.w, h: d.h });
+      vscode.postMessage({ type: copy ? 'copyPng' : 'savePng', data: await ST.b64(blob), index, w: d.w, h: d.h });
     } catch (err) {
       vscode.postMessage({ type: 'error', message: 'PNG export failed: ' + String(err && err.message || err).slice(0, 300) });
     }
   }
-  async function drawPng(svgText, w, h) {
-    const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
-    try {
-      const img = new Image();
-      img.decoding = 'sync';
-      await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('the SVG could not be drawn')); img.src = url; });
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      const out = await new Promise((res, rej) => { try { c.toBlob(b => b ? res(b) : rej(new Error('the image is too large for the canvas')), 'image/png'); } catch (e) { rej(e); } });
-      return out;
-    } finally { URL.revokeObjectURL(url); }
-  }
-  async function b64(blob) {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    return btoa(bin);
-  }
 
   // ---------- messages from the extension host ----------
+  let nextRender = null, drawing = false;
+  async function drain() {
+    drawing = true;
+    try {
+      while (nextRender) { const m = nextRender; nextRender = null; await startRender(m); }
+    } finally { drawing = false; }
+  }
+  async function startRender(m) {
+    const keep = new Set((m.items || []).map(it => it.index));
+    for (const k of [...good.keys()]) if (!keep.has(k)) good.delete(k);
+    if (m.fileName !== doc.fileName) { good.clear(); errors.clear(); firstFit = true; }
+    doc = { items: m.items || [], markdown: !!m.markdown, fileName: m.fileName || '', seq: m.seq };
+    if (m.limits) limits = Object.assign(limits, m.limits);
+    if (doc.markdown && prefs.choice >= doc.items.length) prefs.choice = -1;
+    try { await renderAll(); }
+    catch (err) { showProblem([{ message: String(err && err.message || err) }]); vscode.postMessage({ type: 'rendered', seq: doc.seq, results: [{ index: 0, ok: false, error: String(err && err.message || err) }] }); }
+  }
   window.addEventListener('message', e => {
     const m = e.data;
     if (!m || typeof m.type !== 'string') return;
@@ -490,18 +461,15 @@
       limits = Object.assign(limits, m.limits || {});
       themeSel.value = prefs.theme; bgSel.value = prefs.background; bgColor.value = prefs.custom;
       maxW.value = prefs.maxW ? String(prefs.maxW) : ''; maxH.value = prefs.maxH ? String(prefs.maxH) : '';
+      svgTextBox.checked = !!prefs.svgText;
       const r = exportMenu.querySelector(`input[name="scale"][value="${prefs.scale}"]`); if (r) r.checked = true;
       applyBg();
       if (typeof m.uri === 'string') vscode.setState(Object.assign(vscode.getState() || {}, { uri: m.uri }));
     } else if (m.type === 'render') {
-      const keep = new Set((m.items || []).map(it => it.index));
-      for (const k of [...good.keys()]) if (!keep.has(k)) good.delete(k);
-      if (m.fileName !== doc.fileName) { good.clear(); errors.clear(); firstFit = true; }
-      doc = { items: m.items || [], markdown: !!m.markdown, fileName: m.fileName || '', seq: m.seq };
+      // Typing fast: keep only the newest text. It is drawn as soon as the current drawing ends.
       vscode.postMessage({ type: 'progress', seq: m.seq });
-      if (m.limits) limits = Object.assign(limits, m.limits);
-      if (doc.markdown && prefs.choice >= doc.items.length) prefs.choice = -1;
-      renderAll().catch(err => { showProblem([{ message: String(err && err.message || err) }]); vscode.postMessage({ type: 'rendered', seq: doc.seq, results: [{ index: 0, ok: false, error: String(err && err.message || err) }] }); });
+      nextRender = m;
+      if (!drawing) drain();
     } else if (m.type === 'focusBlock') {
       focusIndex = m.index;
       if (!single()) {
@@ -509,6 +477,8 @@
         const c = list.querySelector(`.card[data-index="${focusIndex}"]`);
         if (c) c.scrollIntoView({ block: 'nearest' });
       }
+    } else if (m.type === 'choose') {
+      if (doc.markdown && Number.isInteger(m.index)) setChoice(m.index);
     } else if (m.type === 'wheel') {
       prefs.wheel = m.wheel;
     }
@@ -532,6 +502,7 @@
     single: single(), items: doc.items.length, good: [...good.keys()], errors: [...errors.entries()].map(([k, v]) => [k, v.message.slice(0, 200)]),
     view: Object.assign({}, view), size, theme: mermaidTheme(), background: prefs.background, bg: bgColorValue(), prefs: Object.assign({}, prefs),
     rendered: Number(document.body.dataset.rendered || 0), stale: document.body.classList.contains('stale'), cspViolations: cspViolations.slice(),
+    lastExport, renderMs: [...good.values()].map(g => g.ms),
   });
 
   vscode.postMessage({ type: 'ready' });

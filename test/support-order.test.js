@@ -30,9 +30,9 @@ test('More free viewers puts the closest pairs first in each group', () => {
   assert.equal(support.pairWeight(SELF, list[0].id), Math.max(...list.filter((p) => p.live).map((p) => support.pairWeight(SELF, p.id))));
 });
 
-test('Related list starts with the Graphviz preview, the closest tool to this one', () => {
+test('Related list (picked by monetize.py) has 3 to 5 other extensions, without this one', () => {
   const rel = support.relatedProducts(SELF);
-  assert.equal(rel[0].id, 'zovo.zovo-graphviz-preview');
+  assert.ok(rel.every((p) => p.id !== SELF));
   assert.ok(rel.length >= 3 && rel.length <= 5);
   assert.equal(support.SELF_ID, SELF);
 });

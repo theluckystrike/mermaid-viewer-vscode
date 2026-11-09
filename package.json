@@ -1,8 +1,8 @@
 {
   "name": "mermaid-viewer",
-  "displayName": "Mermaid Diagram Viewer & Mermaid Preview (MMD, Offline)",
-  "description": "No sign-in, no AI. Zoom, pan and export SVG or PNG. Free Mermaid diagram viewer and Mermaid preview for .mmd files and mermaid blocks in Markdown, works offline.",
-  "version": "0.1.1",
+  "displayName": "Mermaid Diagram Editor & Viewer, Live Diagram Preview (MMD, PNG/SVG Export, Offline)",
+  "description": "Free Mermaid editor with a live diagram preview: edit .mmd files and mermaid blocks in Markdown side by side, with completion, error lines, templates and PNG, SVG or PDF export. No sign-in, no AI, works offline.",
+  "version": "0.2.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -22,6 +22,11 @@
   ],
   "keywords": [
     "mermaid",
+    "mermaid pdf",
+    "mermaid markdown",
+    "diagram editor",
+    "mermaid live editor",
+    "mermaid editor",
     "mmd",
     "mermaid preview",
     "mermaid viewer",
@@ -48,7 +53,8 @@
   "activationEvents": [
     "onLanguage:mermaid",
     "onLanguage:markdown",
-    "onWebviewPanel:mermaidViewer.preview"
+    "onWebviewPanel:mermaidViewer.preview",
+    "onFileSystem:mermaid-block"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -91,6 +97,59 @@
         "category": "Mermaid Viewer"
       },
       {
+        "command": "mermaidViewer.openEditor",
+        "title": "Open Diagram Editor (Text + Live Preview)",
+        "category": "Mermaid Viewer",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "mermaidViewer.newDiagram",
+        "title": "New Diagram from Template",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.editBlock",
+        "title": "Edit Diagram at Cursor",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.previewBlock",
+        "title": "Preview This Diagram",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.exportPdf",
+        "title": "Export Diagrams to PDF",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.exportWorkspace",
+        "title": "Export All Diagrams in Workspace (SVG/PNG)",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.outlineReveal",
+        "title": "Go to Diagram",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.outlineEdit",
+        "title": "Edit Diagram",
+        "category": "Mermaid Viewer",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "mermaidViewer.outlinePreview",
+        "title": "Preview Diagram",
+        "category": "Mermaid Viewer",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "mermaidViewer.unlockOutline",
+        "title": "Unlock the Diagram Outline",
+        "category": "Mermaid Viewer"
+      },
+      {
         "command": "mermaidViewer.openWalkthrough",
         "title": "Get Started",
         "category": "Mermaid Viewer"
@@ -104,6 +163,22 @@
         "command": "mermaidViewer.moreViewers",
         "title": "More free viewers",
         "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.enterLicenseKey",
+        "title": "Zovo: Enter license key"
+      },
+      {
+        "command": "mermaidViewer.getPro",
+        "title": "Zovo: Get Pro (USD 15 once, all Zovo viewers)"
+      },
+      {
+        "command": "mermaidViewer.unlockWithSponsors",
+        "title": "Zovo: Unlock Pro with GitHub Sponsors"
+      },
+      {
+        "command": "mermaidViewer.removeLicense",
+        "title": "Zovo: Remove license from this editor"
       }
     ],
     "keybindings": [
@@ -126,6 +201,11 @@
           "command": "mermaidViewer.showPreviewToSide",
           "when": "mermaidViewer.isMermaid || mermaidViewer.markdownHasMermaid || resourceExtname =~ /^\\.(mmd|mermaid)$/i",
           "group": "navigation"
+        },
+        {
+          "command": "mermaidViewer.openEditor",
+          "when": "mermaidViewer.markdownHasMermaid && !mermaidViewer.isMermaid",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [
@@ -133,12 +213,27 @@
           "command": "mermaidViewer.showPreviewToSide",
           "when": "resourceExtname =~ /^\\.(mmd|mermaid)$/i",
           "group": "navigation@9"
+        },
+        {
+          "command": "mermaidViewer.openEditor",
+          "when": "resourceExtname =~ /^\\.(mmd|mermaid)$/i",
+          "group": "navigation@9"
+        },
+        {
+          "command": "mermaidViewer.exportPdf",
+          "when": "resourceExtname =~ /^\\.(mmd|mermaid|md|markdown)$/i",
+          "group": "7_modification@9"
         }
       ],
       "editor/context": [
         {
           "command": "mermaidViewer.showPreviewToSide",
           "when": "mermaidViewer.isMermaid || mermaidViewer.markdownHasMermaid",
+          "group": "navigation@9"
+        },
+        {
+          "command": "mermaidViewer.editBlock",
+          "when": "mermaidViewer.markdownHasMermaid",
           "group": "navigation@9"
         }
       ],
@@ -150,6 +245,77 @@
         {
           "command": "mermaidViewer.showPreview",
           "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+        },
+        {
+          "command": "mermaidViewer.openEditor",
+          "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+        },
+        {
+          "command": "mermaidViewer.editBlock",
+          "when": "editorLangId == markdown"
+        },
+        {
+          "command": "mermaidViewer.previewBlock",
+          "when": "false"
+        },
+        {
+          "command": "mermaidViewer.exportPdf",
+          "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+        },
+        {
+          "command": "mermaidViewer.exportWorkspace",
+          "when": "workbenchState != empty"
+        },
+        {
+          "command": "mermaidViewer.outlineReveal",
+          "when": "false"
+        },
+        {
+          "command": "mermaidViewer.outlineEdit",
+          "when": "false"
+        },
+        {
+          "command": "mermaidViewer.outlinePreview",
+          "when": "false"
+        },
+        {
+          "command": "mermaidViewer.unlockOutline",
+          "when": "false"
+        },
+        {
+          "command": "mermaidViewer.enterLicenseKey",
+          "when": "mermaidViewer.proEnabled"
+        },
+        {
+          "command": "mermaidViewer.getPro",
+          "when": "mermaidViewer.proEnabled"
+        },
+        {
+          "command": "mermaidViewer.unlockWithSponsors",
+          "when": "mermaidViewer.proEnabled"
+        },
+        {
+          "command": "mermaidViewer.removeLicense",
+          "when": "mermaidViewer.proEnabled"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mermaidViewer.outlineEdit",
+          "when": "view == mermaidViewer.outline && viewItem == mermaidBlock",
+          "group": "inline@1"
+        },
+        {
+          "command": "mermaidViewer.outlinePreview",
+          "when": "view == mermaidViewer.outline && viewItem =~ /^mermaid(Block|File)$/",
+          "group": "inline@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "mermaidViewer.exportPdf",
+          "when": "view == mermaidViewer.outline",
+          "group": "navigation@1"
         }
       ]
     },
@@ -197,22 +363,24 @@
         "mermaidViewer.wheel": {
           "type": "string",
           "enum": [
+            "auto",
             "zoom",
             "pan"
           ],
           "enumDescriptions": [
-            "The mouse wheel zooms at the pointer. Drag to pan.",
-            "The mouse wheel pans. Ctrl or Cmd plus the wheel zooms, and so does a trackpad pinch."
+            "A mouse wheel zooms at the pointer. On a trackpad, two fingers pan and a pinch zooms.",
+            "The mouse wheel and the trackpad zoom at the pointer. Drag to pan.",
+            "The wheel pans. Ctrl or Cmd plus the wheel zooms, and so does a trackpad pinch."
           ],
-          "default": "zoom",
-          "description": "What the mouse wheel does in the diagram view."
+          "default": "auto",
+          "description": "What the mouse wheel and the trackpad do in the diagram view."
         },
         "mermaidViewer.updateDelayMs": {
           "type": "number",
-          "default": 300,
+          "default": 100,
           "minimum": 0,
           "maximum": 5000,
-          "description": "How long to wait after you stop typing before the preview draws the diagram again."
+          "description": "How long to wait after you stop typing before the preview draws the diagram again. While a big diagram is still drawing, only the newest text is drawn after it."
         },
         "mermaidViewer.maxTextSize": {
           "type": "number",
@@ -245,6 +413,26 @@
           ],
           "description": "Language ids that the preview treats as Mermaid, in addition to .mmd and .mermaid files. Add your own if you map other file types to Mermaid with files.associations."
         },
+        "mermaidViewer.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show \"Edit diagram\" and \"Preview\" above each mermaid block in Markdown files."
+        },
+        "mermaidViewer.saveMarkdownOnBlockSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "When you save a diagram opened with \"Edit diagram\", also save the Markdown file, if it had no other unsaved changes. Undo in the Markdown file takes the change back either way."
+        },
+        "mermaidViewer.svgTextLabels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Export SVG with plain SVG text labels instead of HTML labels. Azure DevOps wikis and some image tools drop HTML labels. You can also switch it in the Export menu; that choice is kept for this workspace."
+        },
+        "mermaidViewer.exportFolder": {
+          "type": "string",
+          "default": "mermaid-export",
+          "description": "Folder in the workspace for \"Export All Diagrams in Workspace\". Folders inside it follow the folders of the source files."
+        },
         "mermaidViewer.askForRating": {
           "type": "boolean",
           "default": true,
@@ -260,32 +448,45 @@
     "walkthroughs": [
       {
         "id": "mermaidViewer.start",
-        "title": "Get started with Mermaid Viewer",
-        "description": "Preview Mermaid diagrams beside your text, zoom in, and save them as SVG or PNG. No account and no network.",
+        "title": "Get started with the Mermaid editor",
+        "description": "Edit Mermaid diagrams next to a live preview, in .mmd files and in Markdown, and save them as PNG, SVG or PDF. No account and no network.",
         "steps": [
           {
             "id": "open",
-            "title": "Open the preview",
-            "description": "Open a .mmd file, or a Markdown file with a mermaid block, and click the preview icon in the editor title. Cmd+K V (Ctrl+K V) does the same.\n[Find a .mmd file](command:workbench.action.quickOpen?%5B%22.mmd%22%5D)",
+            "title": "Open the diagram editor",
+            "description": "Open a .mmd file and run Open Diagram Editor: text on the left, live diagram on the right.\n[Open Diagram Editor](command:mermaidViewer.openEditor)\n[New Diagram from Template](command:mermaidViewer.newDiagram)",
             "media": {
               "markdown": "walkthrough/open.md"
             },
             "completionEvents": [
-              "onCommand:mermaidViewer.showPreviewToSide"
+              "onCommand:mermaidViewer.openEditor",
+              "onCommand:mermaidViewer.showPreviewToSide",
+              "onCommand:mermaidViewer.newDiagram"
+            ]
+          },
+          {
+            "id": "markdown",
+            "title": "Edit diagrams inside Markdown",
+            "description": "Click Edit diagram above a mermaid block. Saving writes the block back into the Markdown file, and Undo there takes it back.",
+            "media": {
+              "markdown": "walkthrough/markdown.md"
+            },
+            "completionEvents": [
+              "onCommand:mermaidViewer.editBlock"
             ]
           },
           {
             "id": "navigate",
             "title": "Zoom and pan",
-            "description": "Scroll to zoom at the pointer, drag to pan. Fit and 100% are in the toolbar, and the keys 0 and 1 do the same.",
+            "description": "Scroll or pinch to zoom at the pointer, drag or use two fingers to pan. Fit and 100% are in the toolbar, and the keys 0 and 1 do the same.",
             "media": {
               "markdown": "walkthrough/navigate.md"
             }
           },
           {
             "id": "export",
-            "title": "Save SVG or PNG",
-            "description": "Export saves SVG or PNG. Pick 1x, 2x or 4x and an optional largest width or height, or copy the PNG to the clipboard.",
+            "title": "Save PNG, SVG or PDF",
+            "description": "Export gives PNG at an exact width or height or at 1x, 2x or 4x, SVG with optional text labels for wikis, and PDF with a title page.",
             "media": {
               "markdown": "walkthrough/export.md"
             }
@@ -303,13 +504,24 @@
           }
         ]
       }
-    ]
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "mermaidViewer.outline",
+          "name": "Mermaid Diagrams",
+          "when": "mermaidViewer.isMermaid || mermaidViewer.markdownHasMermaid",
+          "icon": "media/preview-icon.svg"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node scripts/build.js",
-    "test": "node scripts/build.js && node --test \"test/*.test.js\"",
+    "test": "node scripts/build.js && ZOVO_SPONSORS_MODULE=$PWD/src/license/sponsors.js node --test \"test/*.test.js\"",
     "samples": "node scripts/make-samples.mjs samples",
-    "package": "node scripts/build.js && npx -y @vscode/vsce package --no-dependencies -o dist/"
+    "package": "node scripts/build.js && npx -y @vscode/vsce package --no-dependencies -o dist/",
+    "e2e": "node scripts/e2e-vscode.mjs && node scripts/e2e-editor.mjs"
   },
   "homepage": "https://github.com/theluckystrike/mermaid-viewer-vscode#readme",
   "bugs": {

@@ -44,7 +44,50 @@ function findMermaidBlocks(text) {
 }
 
 function block(index, open, endLine, closed) {
-  return { index, fenceLine: open.fenceLine, startLine: open.fenceLine + 1, endLine, source: open.body.join('\n'), closed };
+  return { index, fenceLine: open.fenceLine, startLine: open.fenceLine + 1, endLine, source: open.body.join('\n'), closed, indent: open.indent, fence: open.fence };
+}
+
+/**
+ * Find the block an "Edit diagram" session belongs to, after the Markdown file may have changed.
+ * First the block at the same index with the same text, then the only block anywhere with that text.
+ * Returns the block or null (the block was changed or removed in the Markdown file).
+ */
+function locateBlock(blocks, index, lastText) {
+  const same = blocks.find(b => b.index === index);
+  if (same && same.source === lastText) return same;
+  const hits = blocks.filter(b => b.source === lastText);
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Text from the block editor, as it will sit in the Markdown block: no BOM, \n line ends, one final newline dropped. */
+function normalizeBlockText(text) {
+  return String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').replace(/\n$/, '');
+}
+
+/**
+ * A line in new block text that Markdown would read as the closing fence of the block, or -1.
+ * Writing such a text back would cut the block in two, so the save is refused.
+ */
+function fenceConflict(b, text) {
+  const ch = (b.fence || '```')[0] === '`' ? '`' : '~';
+  const re = new RegExp('^ {0,3}' + (ch === '`' ? '`' : '~') + '{' + (b.fence || '```').length + ',}\\s*$');
+  const lines = normalizeBlockText(text).split('\n');
+  for (let i = 0; i < lines.length; i++) if (re.test(' '.repeat(b.indent || 0) + lines[i]) || re.test(lines[i])) return i;
+  return -1;
+}
+
+/**
+ * The edit that puts new text into a block: { startLine, endLine, text } replaces whole lines
+ * [startLine, endLine) (endLine exclusive, character 0 on both). Lines get the fence indent back.
+ * For a block with no closing fence, the lines up to the end of the file are replaced and endLine is -1.
+ */
+function blockEdit(b, newText, eol) {
+  const nl = eol || '\n';
+  const body = normalizeBlockText(newText);
+  const pad = ' '.repeat(b.indent || 0);
+  const lines = body === '' ? [] : body.split('\n').map(l => (l && pad ? pad + l : l));
+  if (b.closed) return { startLine: b.startLine, endLine: b.endLine, text: lines.length ? lines.join(nl) + nl : '' };
+  return { startLine: b.startLine, endLine: -1, text: lines.join(nl) };
 }
 
 /** Index of the block that holds a 0-based line, or -1. */
@@ -152,6 +195,6 @@ function cleanSource(text) {
 }
 
 module.exports = {
-  isMermaidPath, isMarkdownPath, findMermaidBlocks, blockAtLine, hasMermaidFence, diagramType, scan, refuseReason,
+  isMermaidPath, isMarkdownPath, findMermaidBlocks, blockAtLine, locateBlock, normalizeBlockText, fenceConflict, blockEdit, hasMermaidFence, diagramType, scan, refuseReason,
   errorLine, shortError, cleanSource, MAX_NESTING, MAX_LINE_CHARS,
 };

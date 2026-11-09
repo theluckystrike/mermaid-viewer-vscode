@@ -16,7 +16,7 @@ test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const read = f => T.cleanSource(fs.readFileSync(path.join(dir, f), 'utf8'));
 
 test('the 16 docs examples pass the guards; the large flowchart is over the default link limit', () => {
-  const docs = fs.readdirSync(dir).filter(f => /\.(mmd|mermaid)$/.test(f) && !/hostile|huge|large|medium|slow|invalid|binary|empty|syntax/.test(f));
+  const docs = fs.readdirSync(dir).filter(f => /\.(mmd|mermaid)$/.test(f) && !/hostile|huge|large|medium|slow|invalid|binary|empty|syntax|flow-300|flow-2000|sequence-300/.test(f));
   assert.equal(docs.length, 16);
   for (const f of docs) assert.equal(T.refuseReason(read(f), LIM), '', f);
   const big = read('large-flowchart.mmd');
@@ -47,4 +47,17 @@ test('README.md: five blocks, the fourth is the broken one', () => {
   assert.equal(b.length, 5);
   assert.match(b[3].source, /B --> --> C/);
   assert.equal(T.diagramType(b[2].source), 'stateDiagram-v2');
+});
+
+test('0.2.0 samples: 300 and 2,000 node flowcharts and the 300-step sequence pass the guards; 5 MB file, 200 blocks and hostile files', () => {
+  assert.equal(T.refuseReason(read('flow-300.mmd'), LIM), '');
+  assert.equal(T.refuseReason(read('flow-2000-nodes.mmd'), LIM), '');
+  assert.equal(T.scan(read('flow-2000-nodes.mmd')).edges, 1999);
+  assert.equal(T.refuseReason(read('sequence-300.mmd'), LIM), '');
+  assert.ok(fs.statSync(path.join(dir, 'huge-5mb.mmd')).size > 5e6);
+  assert.match(T.refuseReason(read('huge-5mb.mmd'), LIM), /characters\. The limit is 500,000/);
+  const blocks = T.findMermaidBlocks(read('many-blocks.md'));
+  assert.equal(blocks.length, 200);
+  assert.equal(T.findMermaidBlocks(read('hostile-links.md')).length, 2);
+  assert.equal(T.refuseReason(read('hostile-loop-error.mmd'), LIM), '', 'under the limits, so the parser itself must report the error');
 });

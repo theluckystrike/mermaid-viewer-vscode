@@ -352,5 +352,47 @@ flowchart LR
   fs.writeFileSync(path.join(largeDir, 'empty.mmd'), '');
   // A 2.5 MB file that the check opens only from the Explorer menu, so VS Code never loaded it before.
   fs.writeFileSync(path.join(largeDir, 'huge-unopened.mmd'), 'flowchart LR\n' + '  a --> b\n'.repeat(Math.ceil(2.5e6 / 10)));
+  // 0.2.0 editor check (scripts/e2e-editor.mjs):
+  // 300 nodes for the typing-to-drawn time, 2,000 nodes and a 300-step sequence for size.
+  const F3 = ['flowchart TD'];
+  for (let i = 1; i < 300; i++) F3.push(`  f${Math.floor((i - 1) / 2)}["Task ${Math.floor((i - 1) / 2)}"] --> f${i}["Task ${i}"]`);
+  w(largeDir, 'flow-300.mmd', F3.join('\n') + '\n');
+  const F2 = ['flowchart LR'];
+  for (let i = 1; i < 2000; i++) F2.push(`  g${rnd(i)} --> g${i}`);
+  w(largeDir, 'flow-2000-nodes.mmd', F2.join('\n') + '\n');
+  const SQ = ['sequenceDiagram', '  participant C as Client', '  participant G as Gateway', '  participant S as Service', '  participant D as Database'];
+  const P = ['C', 'G', 'S', 'D'];
+  for (let i = 0; i < 300; i++) { const a = P[i % 4], b = P[(i + 1 + (i % 3)) % 4]; SQ.push(`  ${a}->>${a === b ? P[(i + 1) % 4] : b}: step ${i + 1}`); }
+  w(largeDir, 'sequence-300.mmd', SQ.join('\n') + '\n');
+  // A 5 MB .mmd and a Markdown file with 200 mermaid blocks (2 of them broken).
+  fs.writeFileSync(path.join(largeDir, 'huge-5mb.mmd'), 'flowchart LR\n' + '  a1 --> b1\n'.repeat(Math.ceil(5.2e6 / 12)));
+  const MB = ['# Two hundred diagrams', ''];
+  for (let i = 0; i < 200; i++) {
+    MB.push(`## Diagram ${i + 1}`, '', '```mermaid');
+    if (i === 57 || i === 158) MB.push('flowchart LR', `  a${i} --> --> b${i}`);
+    else if (i % 3 === 0) MB.push('sequenceDiagram', `  A->>B: message ${i}`, '  B-->>A: ok');
+    else if (i % 3 === 1) MB.push('pie', `  "x" : ${i + 1}`, '  "y" : 10');
+    else MB.push('flowchart LR', `  s${i}[Start ${i}] --> e${i}([End])`);
+    MB.push('```', '');
+  }
+  w(largeDir, 'many-blocks.md', MB.join('\n'));
+  // Hostile: HTML and javascript: links in Markdown blocks, and a syntax error that looks like it could loop.
+  w(largeDir, 'hostile-links.md', `# Hostile blocks
+
+\`\`\`mermaid
+flowchart LR
+  A["<img src=x onerror=alert(1)>"] --> B["<a href='javascript:alert(2)'>click me</a>"]
+  click A href "javascript:alert(3)"
+  click B "https://example.com/beacon"
+\`\`\`
+
+\`\`\`mermaid
+%%{init: {"securityLevel": "loose", "themeCSS": "@import url(https://example.com/x.css);"}}%%
+sequenceDiagram
+  A->>B: <img src="https://example.com/pixel.png">
+  Note over A: <script>alert(4)</script>
+\`\`\`
+`);
+  w(largeDir, 'hostile-loop-error.mmd', 'flowchart TD\n' + Array.from({ length: 600 }, (_, i) => `  A${i} --> A${i} --> A${i}`).join('\n') + '\n  B --> ((((((((((((((((((((((((((((((((((((((((\n  C[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[\n');
 }
 console.log(`wrote ${names.length} samples to ${dir}` + (largeDir ? ` and the large and hostile files to ${largeDir}` : ''));

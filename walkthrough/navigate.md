@@ -1,6 +1,6 @@
 # Zoom and pan
 
-- Scroll to zoom. The point under the pointer stays where it is.
+- Scroll with a mouse wheel, or pinch on a trackpad, to zoom. The point under the pointer stays where it is. Two fingers on a trackpad pan.
 - Drag to pan.
 - "Fit" shows the whole diagram, and "100%" shows it at its real size. The keys `0` and `1` do the same, `+` and `-` zoom, and the arrow keys pan.
 - Prefer the wheel to pan? Set `mermaidViewer.wheel` to `pan`. Then Ctrl or Cmd plus the wheel zooms, and so does a trackpad pinch.

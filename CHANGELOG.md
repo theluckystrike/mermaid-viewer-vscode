@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 (2026-11-09)
+
+- Diagram editor: "Open Diagram Editor" puts the text on the left and the live diagram on the right. The preview draws again 100 ms after you stop typing (was 300 ms). While a big diagram is still drawing, only the newest text is drawn after it.
+- Markdown: "Edit diagram" above each mermaid block opens the block next to a live preview. Saving writes it back into the Markdown file with a normal edit, so Undo in the Markdown file takes it back. "Preview" shows one block with zoom and export.
+- Completion for diagram types, keywords, arrows and node shapes, in .mmd files and inside mermaid blocks.
+- "New Diagram from Template" with 15 diagram types; in Markdown it inserts a mermaid block at the cursor.
+- Export: Width and Height now give an exact PNG size (one of them keeps the shape, both fit a box). "Text labels for wikis" writes SVG labels as plain text for Azure DevOps and GitHub wikis. Smaller SVG files: unused CSS removed, coordinates rounded. "Save PDF" puts every diagram of a file in one PDF with a title page.
+- Fix: PNG export and Copy PNG of diagrams with HTML labels (most flowcharts, class and state diagrams) failed with "Tainted canvases may not be exported" in current VS Code. Images now use plain text labels for those diagrams.
+- "Export All Diagrams in Workspace" writes every diagram to SVG and/or PNG.
+- "Mermaid Diagrams" view in the Explorer lists the diagrams of the open file.
+- Trackpad: with the new default `mermaidViewer.wheel` = `auto`, two fingers pan and a pinch zooms; a mouse wheel still zooms.
+- New settings: `codeLens`, `saveMarkdownOnBlockSave`, `svgTextLabels`, `exportFolder`.
+- Rating ask v2.1 (2 files in 2 sessions at least 4 hours apart). The footer and "More free viewers" now start with Rate and with the Zovo extensions most related to this one.
+- The listing name is now "Mermaid Diagram Editor & Viewer, Live Diagram Preview (MMD, PNG/SVG Export, Offline)". Commands, settings and the extension id are unchanged.
+
 ## 0.1.1 (2026-11-08)
 
 - Listing name and short description only: "Mermaid Diagram Viewer & Mermaid Preview (MMD, Offline)". No code change.

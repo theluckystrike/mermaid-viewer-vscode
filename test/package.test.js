@@ -9,12 +9,14 @@ const root = path.join(__dirname, '..');
 const pkg = require('../package.json');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
-test('display name holds every word of each target phrase', () => {
+test('display name holds every word of each target phrase (DEMAND2 build 4) and no rival listing name', () => {
   const words = new Set(pkg.displayName.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean));
-  for (const phrase of ['mermaid preview', 'mermaid viewer', 'mmd viewer', 'mermaid diagram', 'mermaid'])
+  for (const phrase of ['mermaid editor', 'mermaid live editor', 'diagram editor', 'mermaid diagram', 'mermaid diagram viewer', 'mermaid preview', 'mermaid viewer', 'mmd viewer', 'mermaid'])
     for (const w of phrase.split(' ')) assert.ok(words.has(w), `"${w}" from "${phrase}" is missing in the display name`);
-  assert.doesNotMatch(pkg.displayName, /editor/i);
-  assert.ok(pkg.displayName.length <= 70);
+  // NAME GUARD: not the exact name of another listing ("Mermaid Editor", "Mermaid Preview", "Mermaid Viewer", "Mermaid Chart").
+  for (const rival of ['Mermaid Editor', 'Mermaid Preview', 'Mermaid Viewer', 'Mermaid Chart', 'Markdown Preview Mermaid Support'])
+    assert.ok(!pkg.displayName.includes(rival), rival);
+  assert.ok(pkg.displayName.length <= 90);
 });
 
 test('description says free, no sign-in and offline', () => {
@@ -24,7 +26,7 @@ test('description says free, no sign-in and offline', () => {
 });
 
 test('every contributed command is registered, every setting is read', () => {
-  const ext = read('src/extension.js') + read('src/support.js');
+  const ext = read('src/extension.js') + read('src/support.js') + read('src/license/index.js') + read('src/blocks.js') + read('src/batch.js');
   for (const c of pkg.contributes.commands) {
     const id = c.command;
     const short = id.split('.')[1];
@@ -45,13 +47,16 @@ test('the Mermaid bundle matches the version and sha256 in package.json', () => 
 });
 
 test('no network code in the extension host or the webview script', () => {
-  for (const f of ['src/extension.js', 'src/html.js', 'src/core/mermaid-text.js', 'src/rate.js', 'src/support.js']) {
+  for (const f of ['src/extension.js', 'src/html.js', 'src/core/mermaid-text.js', 'src/core/complete.js', 'src/core/templates.js', 'src/core/pdf.js', 'src/blocks.js', 'src/outline.js', 'src/batch.js', 'src/pro.js', 'src/rate.js', 'src/support.js', 'src/license/index.js', 'src/license/license.js']) {
     const s = read(f);
     assert.doesNotMatch(s, /require\(['"](https?|net|tls|dgram|dns|http2)['"]\)/, f);
     assert.doesNotMatch(s, /\bfetch\(|XMLHttpRequest|WebSocket/, f);
   }
-  const w = read('media/preview.js');
-  assert.doesNotMatch(w, /\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|new Worker/);
+  for (const f of ['media/preview.js', 'media/batch.js', 'media/svgtools.js']) assert.doesNotMatch(read(f), /\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|new Worker/, f);
+  // The only network code in the package: the GitHub Sponsors rail, used only after the user clicks Unlock.
+  assert.match(read('src/license/sponsors.js'), /api\.github\.com\/graphql|graphql/);
+  assert.equal(require('../src/pro.js').PRO_ENABLED, false, 'this release ships with Pro switched off');
+  const w = read('media/svgtools.js');
   assert.match(w, /securityLevel: 'strict'/);
   assert.match(w, /secure: \['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering', 'maxEdges', 'dompurifyConfig'\]/);
   assert.match(w, /FORBID_TAGS: \['img'/);
@@ -75,7 +80,9 @@ test('.vscodeignore keeps tests, scripts, samples and images out of the package'
 });
 
 test('the webview cleans links, handlers and remote URLs out of Mermaid output', () => {
-  const w = read('media/preview.js');
+  const w = read('media/svgtools.js');
+  assert.match(read('media/preview.js'), /ST\.toSvgElement/);
+  assert.match(read('media/batch.js'), /ST\.toSvgElement/);
   assert.match(w, /n\.startsWith\('on'\)/);
   assert.match(w, /script,iframe,object,embed,link,meta,base/);
   assert.match(w, /\(href\|xlink:href\|src|n === 'href' \|\| n === 'xlink:href'/);

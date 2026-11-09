@@ -1,9 +1,9 @@
-# Open the preview
+# Open the editor
 
-Open a `.mmd` or `.mermaid` file, or a Markdown file with a ` ```mermaid ` block. Then click the preview icon at the top right of the editor, or press `Cmd+K V` (`Ctrl+K V` on Windows and Linux).
+Open a `.mmd` or `.mermaid` file and run "Mermaid Viewer: Open Diagram Editor" from the Command Palette. The text stays on the left and the live diagram opens on the right. The preview icon at the top right of the editor, or `Cmd+K V` (`Ctrl+K V` on Windows and Linux), opens the preview beside the file you have open.
 
-The preview draws the diagram with Mermaid 12.3.0, which ships inside the extension. It needs no account and no network.
+No file yet? "Mermaid Viewer: New Diagram from Template" starts one of 15 diagram types.
 
-In a Markdown file, the preview lists every diagram in the file. Each one has its own error line and its own export buttons. Pick one in the list at the top to see it alone with zoom and pan.
+While you type, completion offers diagram types, keywords, arrows and shapes. An error gets a red underline and shows at the top of the preview.
 
-Other file types: add their language id to `mermaidViewer.languageIds`.
+Mermaid 12.3.0 ships inside the extension. It needs no account and no network.

@@ -7,10 +7,16 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { execFile } = require('child_process');
-const { buildHtml, stoppedHtml } = require('./html');
+const { buildHtml, batchHtml, stoppedHtml } = require('./html');
 const T = require('./core/mermaid-text');
+const { completions } = require('./core/complete');
+const { TEMPLATES } = require('./core/templates');
 const { createRatingPrompt } = require('./rate');
 const { registerSupport, commandUris, showLinks } = require('./support');
+const { createBlocks, SCHEME: BLOCK_SCHEME } = require('./blocks');
+const { createOutline } = require('./outline');
+const { createBatch } = require('./batch');
+const { createPro } = require('./pro');
 
 const SECTION = 'mermaidViewer';
 const VIEW_TYPE = 'mermaidViewer.preview';
@@ -18,6 +24,7 @@ const EXT_ID = 'zovo.mermaid-viewer';
 const PREFS_KEY = 'mermaidViewer.prefs';
 const MERMAID_VERSION = require('../package.json').mermaidVersion;
 let rating = { success() {}, failure() {} };
+let blocks = null;
 
 function settings() {
   const c = vscode.workspace.getConfiguration(SECTION);
@@ -27,8 +34,10 @@ function settings() {
     theme: c.get('theme', 'auto'),
     background: c.get('background', 'theme'),
     custom: /^#[0-9a-f]{6}$/i.test(c.get('customBackground', '')) ? c.get('customBackground') : '#f5f5f0',
-    wheel: c.get('wheel', 'zoom') === 'pan' ? 'pan' : 'zoom',
-    delay: clamp(c.get('updateDelayMs', 300), 0, 5000, 300),
+    wheel: ['auto', 'zoom', 'pan'].includes(c.get('wheel', 'auto')) ? c.get('wheel', 'auto') : 'auto',
+    delay: clamp(c.get('updateDelayMs', 100), 0, 5000, 100),
+    svgText: c.get('svgTextLabels', false) === true,
+    exportFolder: String(c.get('exportFolder', 'mermaid-export') || 'mermaid-export').replace(/^[\\/]+/, '').replace(/\.\.(?=[\\/]|$)/g, '') || 'mermaid-export',
     maxTextSize: Math.floor(clamp(c.get('maxTextSize', 500000), 1000, 20000000, 500000)),
     maxEdges: Math.floor(clamp(c.get('maxEdges', 2000), 100, 200000, 2000)),
     timeoutMs: clamp(c.get('renderTimeoutSeconds', 10), 2, 300, 10) * 1000,
@@ -54,6 +63,7 @@ function cleanPrefs(p, s) {
     custom: /^#[0-9a-f]{6}$/i.test(o.custom || '') ? o.custom : s.custom,
     scale: [1, 2, 4].includes(Number(o.scale)) ? Number(o.scale) : 2,
     maxW: int(o.maxW, 16, 32000), maxH: int(o.maxH, 16, 32000),
+    svgText: typeof o.svgText === 'boolean' ? o.svgText : !!s.svgText,
   };
 }
 
@@ -86,6 +96,7 @@ class Preview {
       cspSource: wv.cspSource,
       scriptUri: wv.asWebviewUri(vscode.Uri.joinPath(media, 'preview.js')).toString(),
       mermaidUri: wv.asWebviewUri(vscode.Uri.joinPath(media, 'mermaid.min.js')).toString(),
+      toolsUri: wv.asWebviewUri(vscode.Uri.joinPath(media, 'svgtools.js')).toString(),
       styleUri: wv.asWebviewUri(vscode.Uri.joinPath(media, 'preview.css')).toString(),
       title: this.fileName, theme: p.theme, background: p.background, custom: p.custom, mermaidVersion: MERMAID_VERSION,
       showSupportLinks: showLinks(vscode, SECTION),
@@ -173,6 +184,7 @@ class Preview {
         break;
       }
       case 'revealLine': if (Number.isInteger(m.line) && m.line >= 0) await this.reveal(m.line); break;
+      case 'exportPdf': await vscode.commands.executeCommand('mermaidViewer.exportPdf', this.uri); break;
       case 'saveSvg': if (typeof m.svg === 'string') await this.save(Buffer.from('<?xml version="1.0" encoding="UTF-8"?>\n' + m.svg + '\n', 'utf8'), 'svg', m.index); break;
       case 'savePng': { const b = pngBytes(m.data); if (b) await this.save(b, 'png', m.index); else vscode.window.showErrorMessage('PNG export failed: the image data was not a PNG.'); break; }
       case 'copyPng': { const b = pngBytes(m.data); if (b) await this.copyPng(b, m.w, m.h, m.index); break; }
@@ -195,7 +207,7 @@ class Preview {
     }));
     if (!this.counted && results.length) {
       this.counted = true;
-      if (results.every(r => r && r.ok)) rating.success(); else if (results.some(r => r && !r.ok && !r.refuse && !r.empty)) rating.failure();
+      if (results.every(r => r && r.ok)) rating.success(this.uri); else if (results.some(r => r && !r.ok && !r.refuse && !r.empty)) rating.failure();
     }
   }
 
@@ -210,8 +222,9 @@ class Preview {
 
   target(ext, index) {
     const many = this.items.length > 1 && Number.isInteger(index);
-    const base = this.fileName.replace(/\.[^.]+$/, '') + (many ? `-${index + 1}` : '') + '.' + ext;
-    const dir = this.uri.scheme === 'file' ? vscode.Uri.file(path.dirname(this.uri.fsPath)) : undefined;
+    const base = this.fileName.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '-') + (many ? `-${index + 1}` : '') + '.' + ext;
+    const src = (blocks && blocks.sourceFor(this.uri)) || this.uri; // a Markdown block: next to its Markdown file
+    const dir = src.scheme === 'file' ? vscode.Uri.file(path.dirname(src.fsPath)) : undefined;
     return dir ? vscode.Uri.joinPath(dir, base) : undefined;
   }
 
@@ -366,21 +379,132 @@ function updateContext(editor) {
   vscode.commands.executeCommand('setContext', 'mermaidViewer.markdownHasMermaid', md);
 }
 
+const KIND = () => ({ type: vscode.CompletionItemKind.Class, template: vscode.CompletionItemKind.Snippet, keyword: vscode.CompletionItemKind.Keyword, arrow: vscode.CompletionItemKind.Operator, shape: vscode.CompletionItemKind.Struct });
+
+/** Completion in .mmd files and inside ```mermaid blocks of Markdown files. */
+function completionProvider() {
+  return {
+    provideCompletionItems(doc, pos) {
+      let text, line, offset = 0;
+      if (isMarkdownDoc(doc)) {
+        if (doc.lineCount > 200000) return [];
+        const b = T.findMermaidBlocks(doc.getText()).find(x => pos.line >= x.startLine && (x.closed ? pos.line < x.endLine : pos.line <= x.endLine));
+        if (!b) return [];
+        text = b.source; line = pos.line - b.startLine; offset = b.indent || 0;
+      } else if (isMermaidDoc(doc) || doc.uri.scheme === BLOCK_SCHEME) {
+        if (doc.lineCount > 200000) return [];
+        text = doc.getText(); line = pos.line;
+      } else return [];
+      const lineText = doc.lineAt(pos.line).text.slice(0, pos.character);
+      // Replace the whole token before the cursor, so arrows like --> complete after "--" too.
+      const start = Math.max(offset, lineText.search(/\S+$/) < 0 ? pos.character : lineText.search(/\S+$/));
+      const range = new vscode.Range(pos.line, start, pos.line, pos.character);
+      const kinds = KIND();
+      const r = completions(text, line);
+      return r.items.map((it, i) => {
+        const c = new vscode.CompletionItem(it.label, kinds[it.kind] || vscode.CompletionItemKind.Keyword);
+        c.detail = it.detail;
+        c.insertText = it.snippet ? new vscode.SnippetString(it.insertText) : it.insertText;
+        c.range = range;
+        c.filterText = it.label;
+        c.sortText = String(i).padStart(4, '0');
+        return c;
+      });
+    },
+  };
+}
+
 function activate(context) {
   const manager = new Manager(context);
   context.subscriptions.push({ dispose: () => manager.dispose() });
   registerSupport({ vscode, context, prefix: SECTION, selfId: EXT_ID });
   rating = createRatingPrompt({ vscode, context, extensionId: EXT_ID, section: SECTION, name: 'Mermaid Viewer' });
+  const pro = createPro({ vscode, context });
+  const setting = (k, d) => vscode.workspace.getConfiguration(SECTION).get(k, d);
 
   const openCmd = side => async arg => {
     const uri = targetUri(arg);
     if (!uri) { vscode.window.showInformationMessage('Open a .mmd file, or a Markdown file with a mermaid block, first.'); return; }
     return manager.open(uri, side ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active);
   };
+  blocks = createBlocks({ vscode, context, isMarkdownDoc, setting, openPreview: uri => manager.open(uri, vscode.ViewColumn.Beside) });
+  const outline = createOutline({ vscode, isMarkdownDoc, isMermaidDoc, pro });
+  const rel = u => { try { return vscode.workspace.asRelativePath(u, false); } catch { return path.basename(u.path); } };
+  const batch = createBatch({
+    vscode, context, settings, pro, rel, sourceFor: u => blocks.sourceFor(u),
+    prefs: () => cleanPrefs(context.workspaceState.get(PREFS_KEY), settings()),
+    makeHtml: wv => {
+      const media = vscode.Uri.joinPath(context.extensionUri, 'media');
+      const u = f => wv.asWebviewUri(vscode.Uri.joinPath(media, f)).toString();
+      return batchHtml({ cspSource: wv.cspSource, mermaidUri: u('mermaid.min.js'), toolsUri: u('svgtools.js'), scriptUri: u('batch.js') });
+    },
+  });
+
+  /** The split editor: the text on the left, the live diagram on the right. Markdown: the block at the cursor. */
+  async function openEditor(arg) {
+    const uri = targetUri(arg);
+    if (!uri) { vscode.window.showInformationMessage('Open a .mmd file, or a Markdown file with a mermaid block, first.'); return; }
+    const isMd = T.isMarkdownPath(uri.path) || vscode.workspace.textDocuments.some(d => d.uri.toString() === uri.toString() && isMarkdownDoc(d));
+    if (isMd) return blocks.editBlock(uri);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const ed = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString());
+    await vscode.window.showTextDocument(doc, { viewColumn: ed ? ed.viewColumn : vscode.ViewColumn.Active, preview: false });
+    return manager.open(uri, vscode.ViewColumn.Beside);
+  }
+
+  async function newDiagram() {
+    const ed = vscode.window.activeTextEditor;
+    const intoMd = !!ed && isMarkdownDoc(ed.document) && ed.document.uri.scheme !== BLOCK_SCHEME;
+    const pick = await vscode.window.showQuickPick(TEMPLATES.map(t => ({ label: t.label, description: t.keyword, detail: t.detail, t })), {
+      placeHolder: intoMd ? 'Pick a diagram type. It goes into this Markdown file at the cursor as a ```mermaid block.' : 'Pick a diagram type. It opens in a new file next to a live preview.',
+      matchOnDescription: true, matchOnDetail: true,
+    });
+    if (!pick) return;
+    if (intoMd) {
+      const at = ed.selection.active;
+      const pre = at.character > 0 ? '\n\n' : '';
+      await ed.edit(b => b.insert(at, pre + '```mermaid\n' + pick.t.text + '```\n'));
+      return ed.document.uri;
+    }
+    const doc = await vscode.workspace.openTextDocument({ language: 'mermaid', content: pick.t.text });
+    await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Active, preview: false });
+    await manager.open(doc.uri, vscode.ViewColumn.Beside);
+    return doc.uri;
+  }
+
+  async function previewBlock(mdUri, index) {
+    const uri = mdUri instanceof vscode.Uri ? mdUri : targetUri();
+    if (!uri) return;
+    const p = await manager.open(uri, vscode.ViewColumn.Beside);
+    if (p && Number.isInteger(index)) { p.choice = index; p.post({ type: 'choose', index }); }
+    return p;
+  }
+
   let ctxTimer = null;
+  const tree = vscode.window.createTreeView('mermaidViewer.outline', { treeDataProvider: outline.provider, showCollapseAll: false });
   context.subscriptions.push(
+    tree,
+    vscode.workspace.registerFileSystemProvider(BLOCK_SCHEME, blocks.provider, { isCaseSensitive: true, isReadonly: false }),
+    vscode.languages.registerCodeLensProvider([{ language: 'markdown' }, { pattern: '**/*.{md,markdown,mdx}' }], blocks.lenses),
+    vscode.languages.registerCompletionItemProvider([{ language: 'mermaid' }, { language: 'markdown' }, { scheme: BLOCK_SCHEME }], completionProvider()),
     vscode.commands.registerCommand('mermaidViewer.showPreviewToSide', openCmd(true)),
     vscode.commands.registerCommand('mermaidViewer.showPreview', openCmd(false)),
+    vscode.commands.registerCommand('mermaidViewer.openEditor', openEditor),
+    vscode.commands.registerCommand('mermaidViewer.newDiagram', newDiagram),
+    vscode.commands.registerCommand('mermaidViewer.editBlock', (u, i) => blocks.editBlock(u, i)),
+    vscode.commands.registerCommand('mermaidViewer.previewBlock', previewBlock),
+    vscode.commands.registerCommand('mermaidViewer.exportWorkspace', () => batch.exportWorkspace()),
+    vscode.commands.registerCommand('mermaidViewer.exportPdf', u => batch.exportPdf(u instanceof vscode.Uri ? u : targetUri())),
+    vscode.commands.registerCommand('mermaidViewer.outlineReveal', async (u, line) => {
+      const doc = await vscode.workspace.openTextDocument(u);
+      const pos = new vscode.Position(Math.max(0, Math.min(line, doc.lineCount - 1)), 0);
+      const ed = await vscode.window.showTextDocument(doc, { selection: new vscode.Range(pos, pos), preserveFocus: false });
+      ed.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.AtTop || 3);
+    }),
+    vscode.commands.registerCommand('mermaidViewer.outlineEdit', it => { const d = outline.current(); if (d) return blocks.editBlock(d.uri, it && it.index); }),
+    vscode.commands.registerCommand('mermaidViewer.outlinePreview', it => { const d = outline.current(); if (d) return previewBlock(d.uri, it && it.md ? it.index : undefined); }),
+    vscode.commands.registerCommand('mermaidViewer.unlockOutline', async () => { if (await pro.gate('Diagram outline')) outline.refresh(); }),
+    pro.onDidChange(() => outline.refresh()),
     vscode.commands.registerCommand('mermaidViewer.openWalkthrough', () => vscode.commands.executeCommand('workbench.action.openWalkthrough', `${EXT_ID}#mermaidViewer.start`, false)),
     vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
       async deserializeWebviewPanel(panel, state) {
@@ -391,21 +515,26 @@ function activate(context) {
     }),
     vscode.workspace.onDidChangeTextDocument(e => {
       const p = manager.previews.get(e.document.uri.toString());
-      if (p && e.contentChanges.length) { if (p.restart()) return; p.schedule(settings().delay); }
+      if (p && e.contentChanges.length) { if (!p.restart()) p.schedule(settings().delay); }
+      if (!e.contentChanges.length) return;
+      if (isMarkdownDoc(e.document)) blocks.onMarkdownChange(e.document);
+      outline.changed(e.document);
       const ed = vscode.window.activeTextEditor;
       if (ed && ed.document === e.document && isMarkdownDoc(e.document)) { clearTimeout(ctxTimer); ctxTimer = setTimeout(() => updateContext(ed), 500); }
     }),
     vscode.workspace.onDidSaveTextDocument(doc => { const p = manager.previews.get(doc.uri.toString()); if (p) p.schedule(0); }),
     vscode.window.onDidChangeTextEditorSelection(e => { const p = manager.previews.get(e.textEditor.document.uri.toString()); if (p) p.onSelection(e.textEditor); }),
-    vscode.window.onDidChangeActiveTextEditor(updateContext),
+    vscode.window.onDidChangeActiveTextEditor(ed => { updateContext(ed); outline.track(ed); }),
     vscode.workspace.onDidCloseTextDocument(doc => { if (!manager.previews.has(doc.uri.toString())) manager.diagnostics.delete(doc.uri); }),
     vscode.workspace.onDidChangeConfiguration(async e => {
       if (!e.affectsConfiguration(SECTION)) return;
-      if (e.affectsConfiguration(SECTION + '.theme') || e.affectsConfiguration(SECTION + '.background') || e.affectsConfiguration(SECTION + '.customBackground')) {
+      if (e.affectsConfiguration(SECTION + '.codeLens')) blocks.refreshLenses();
+      if (e.affectsConfiguration(SECTION + '.theme') || e.affectsConfiguration(SECTION + '.background') || e.affectsConfiguration(SECTION + '.customBackground') || e.affectsConfiguration(SECTION + '.svgTextLabels')) {
         const s = settings(), cur = cleanPrefs(context.workspaceState.get(PREFS_KEY), s);
         if (e.affectsConfiguration(SECTION + '.theme')) cur.theme = s.theme;
         if (e.affectsConfiguration(SECTION + '.background')) cur.background = s.background;
         if (e.affectsConfiguration(SECTION + '.customBackground')) cur.custom = s.custom;
+        if (e.affectsConfiguration(SECTION + '.svgTextLabels')) cur.svgText = s.svgText;
         await context.workspaceState.update(PREFS_KEY, cur);
       }
       updateContext(vscode.window.activeTextEditor);
@@ -413,9 +542,10 @@ function activate(context) {
     }),
   );
   updateContext(vscode.window.activeTextEditor);
-  return { _manager: manager };
+  outline.track(vscode.window.activeTextEditor);
+  return { _manager: manager, _blocks: blocks, _outline: outline, _batch: batch, _pro: pro };
 }
 
 function deactivate() {}
 
-module.exports = { activate, deactivate, _test: { cleanPrefs, pngBytes, isMermaidDoc, isMarkdownDoc } };
+module.exports = { activate, deactivate, _test: { cleanPrefs, pngBytes, isMermaidDoc, isMarkdownDoc, completionProvider } };
