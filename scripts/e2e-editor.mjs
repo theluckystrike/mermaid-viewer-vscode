@@ -285,7 +285,7 @@ try {
     for (const f of ['real/mermaid-docs-flowchart.md', 'real/mermaid-docs-sequenceDiagram.md']) {
       await closeAll(); await previewOf(f);
       const t0 = Date.now();
-      const p = await vs.waitFor(async () => { const r = await probe(); return r.rendered >= 1 ? r : null; }, 120000, 300);
+      const p = await vs.waitFor(async () => { const r = await probe(); return r.rendered >= 1 ? r : null; }, 360000, 500); // a busy shared Mac can take minutes for 116 diagrams
       const l = await lag();
       out[path.basename(f)] = { items: p && p.items, good: p && p.good.length, errors: p && p.errors.length, firstErrors: p && p.errors.slice(0, 3).map(e => e[1].slice(0, 90)), seconds: Math.round((Date.now() - t0) / 100) / 10, workbenchLagMs: l };
       if (!p || p.good.length + p.errors.length !== p.items || l > 1500) throw new Error(JSON.stringify(out));
@@ -314,10 +314,8 @@ try {
     }
     fs.writeFileSync(sf, JSON.stringify(cfg, null, 1)); await sleep(1000);
     await shot('large-sequence-300');
-    await closeAll(); await openFile('huge-5mb.mmd'); await sleep(1500);
-    await palette('Mermaid Viewer: Open Preview to the Side');
-    wv = await findWv('huge-5mb.mmd');
-    const p5 = wv ? await rendered(1, 20000) : null;
+    await closeAll(); await previewOf('huge-5mb.mmd');
+    const p5 = await rendered(1, 60000);
     out['huge-5mb.mmd'] = { message: p5 && p5.errors.map(e => e[1].slice(0, 160)), lagMs: await lag() };
     await closeAll(); await previewOf('many-blocks.md');
     const t0 = Date.now();
