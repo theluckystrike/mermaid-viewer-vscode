@@ -133,7 +133,7 @@ function load(env) {
   const orig = Module._load;
   Module._load = function (req, parent, isMain) { return req === 'vscode' ? env.vscode : orig.call(this, req, parent, isMain); };
   try {
-    for (const k of Object.keys(require.cache)) if (k.includes(path.join('mermaid-viewer-vscode', 'src'))) delete require.cache[k];
+    for (const k of Object.keys(require.cache)) if (k.startsWith(path.join(__dirname, '..', 'src') + path.sep)) delete require.cache[k];
     return require('../src/extension.js');
   } finally { Module._load = orig; }
 }
@@ -397,12 +397,10 @@ test('New Diagram from Template: a new mermaid file next to a preview, or a fenc
   assert.match(inserted, /^```mermaid\nerDiagram\n[\s\S]*```\n$/);
 });
 
-test('outline: one row per diagram with its type, heading and line; the Pro switch is off so it is free', async () => {
+test('outline: one row per diagram with its type, heading and line; free in 0.3.0 although Pro is on', async () => {
   const { env, md, api } = await mdEnv();
-  assert.equal(api._pro.enabled, false);
-  assert.equal(api._pro.has(), true);
-  assert.equal(await api._pro.gate('x'), true);
-  assert.equal(env.S.ctx['mermaidViewer.proEnabled'], false);
+  assert.equal(api._pro.enabled, true);
+  assert.equal(env.S.ctx['mermaidViewer.proEnabled'], true);
   api._outline.track({ document: md });
   const rows = env.S.trees[0].treeDataProvider.getChildren();
   assert.deepEqual(rows.map(r => [r.label, r.description]), [['1. flowchart', 'Doc · line 6'], ['2. sequenceDiagram', 'Second · line 13']]);
@@ -411,18 +409,56 @@ test('outline: one row per diagram with its type, heading and line; the Pro swit
   assert.equal(ti.contextValue, 'mermaidBlock');
 });
 
-test('Pro switch on: a Pro feature asks the license module once; the outline shows one quiet row', async () => {
+function memState() { const m = new Map(); return { get: (k, d) => (m.has(k) ? m.get(k) : d), update: async (k, v) => { m.set(k, v); }, _m: m }; }
+function fakeLicense() {
+  const L = { pro: false, asked: 0, answer: false, ls: [] };
+  L.api = { ready: Promise.resolve(), isPro: () => L.pro, requirePro: async () => { L.asked++; if (L.pro) return true; return L.answer; }, onDidChange: fn => { L.ls.push(fn); return { dispose() {} }; }, handleUri() {} };
+  L.unlock = () => { L.pro = true; L.ls.forEach(f => f()); };
+  return L;
+}
+
+test('Pro: 3 free tries per tool with no dialog, then one dialog per start; Escape uses nothing; unlocked runs free', async () => {
   const { createPro } = (() => { const env = makeVscode(); load(env); return require('../src/pro.js'); })();
   const env = makeVscode();
-  let asked = 0, pro = false;
-  const license = { ready: Promise.resolve(), isPro: () => pro, requirePro: async () => { asked++; return false; }, onDidChange: () => ({ dispose() {} }), handleUri() {} };
-  const p = createPro({ vscode: env.vscode, context: env.ctx, enabled: true, license });
+  env.ctx.globalState = memState();
+  const L = fakeLicense();
+  const p = createPro({ vscode: env.vscode, context: env.ctx, enabled: true, license: L.api });
   assert.equal(p.has(), false);
-  assert.equal(await p.gate('Batch export'), false);
-  assert.equal(asked, 1);
-  pro = true;
+  for (let i = 0; i < 3; i++) assert.equal(await p.gate('Export to PDF with a title page'), true);
+  assert.equal(L.asked, 0, 'no dialog during the free tries');
+  assert.match(env.S.info.join('\n'), /Free try 3 of 3, the last one/);
+  assert.equal(p.triesLeft('Export to PDF with a title page'), 0);
+  assert.equal(p.triesLeft('Export every diagram in the workspace'), 3, 'tries are counted per tool');
+  assert.equal(await p.gate('Export to PDF with a title page'), false);
+  assert.equal(L.asked, 1);
+  assert.equal(await p.gate('Export to PDF with a title page'), false);
+  assert.equal(L.asked, 2, 'cancelled dialogs do not count as a try and ask again only when started again');
+  assert.equal(await p.quietGate('Export on save'), true);
+  for (let i = 0; i < 2; i++) await p.quietGate('Export on save');
+  assert.equal(await p.quietGate('Export on save'), false);
+  assert.equal(L.asked, 2, 'quietGate never opens a dialog');
+  L.unlock();
   assert.equal(p.has(), true);
+  assert.equal(await p.gate('Export to PDF with a title page'), true);
+  assert.equal(await p.quietGate('Export on save'), true);
   assert.equal(env.S.ctx['mermaidViewer.proEnabled'], true);
+  assert.equal(env.S.ctx['mermaidViewer.proLicensed'], true);
+});
+
+test('Pro: showProFeatures=false hides the Pro commands unless licensed; switch off makes every tool free', async () => {
+  const { createPro } = (() => { const env = makeVscode(); load(env); return require('../src/pro.js'); })();
+  const env = makeVscode({ config: { showProFeatures: false } });
+  env.ctx.globalState = memState();
+  const L = fakeLicense();
+  createPro({ vscode: env.vscode, context: env.ctx, enabled: true, license: L.api });
+  assert.equal(env.S.ctx['mermaidViewer.proVisible'], false);
+  L.unlock();
+  assert.equal(env.S.ctx['mermaidViewer.proVisible'], true);
+  const env2 = makeVscode();
+  const off = createPro({ vscode: env2.vscode, context: env2.ctx, enabled: false, license: fakeLicense().api });
+  assert.equal(off.has(), true);
+  assert.equal(await off.gate('x'), true);
+  assert.equal(env2.S.ctx['mermaidViewer.proVisible'], true);
 });
 
 // A tiny JPEG header (SOI + SOF0 10 x 8, 3 components) is enough for the PDF writer.
@@ -469,4 +505,54 @@ test('Export All Diagrams in Workspace: every .mmd and every Markdown block, fol
   assert.equal(r.failed.length, 1);
   assert.match(r.failed[0], /^big\.mmd: This diagram has about 3,000 links/);
   assert.match(env.S.writes[0][1].toString(), /^<\?xml/);
+});
+
+test('Export on save (Pro): writes name.svg next to a .mmd file on save, skips unchanged diagrams, Markdown gets name-N', async () => {
+  const env = makeVscode({ files: [['/w/flow.mmd', Buffer.from('flowchart LR\n  A --> B\n')], ['/w/README.md', Buffer.from(MD)]], config: { exportOnSave: 'svg' } });
+  env.ctx.globalState = memState();
+  const ext = load(env); const api = ext.activate(env.ctx);
+  exportPanel(env, () => ({ ok: true, svg: '<svg xmlns="http://www.w3.org/2000/svg"/>', w: 1, h: 1 }));
+  const doc = await env.vscode.workspace.openTextDocument(env.Uri.file('/w/flow.mmd'));
+  env.E.save.fire(doc);
+  await api._batch._saveState.chain; await tick(20);
+  assert.deepEqual(env.S.writes.map(w => w[0]), ['file:///w/flow.svg']);
+  assert.match(env.S.writes[0][1].toString(), /^<\?xml/);
+  // Same text again: nothing is drawn or written (the file "exists" in the fake fs once written).
+  env.files.set('/w/flow.svg', env.S.writes[0][1]);
+  const r2 = await api._batch.exportOnSave(doc);
+  assert.deepEqual([r2.written, r2.unchanged], [0, 1]);
+  doc._set('flowchart LR\n  A --> C\n');
+  const r3 = await api._batch.exportOnSave(doc);
+  assert.equal(r3.written, 1);
+  const md = await env.vscode.workspace.openTextDocument(env.Uri.file('/w/README.md'));
+  const r4 = await api._batch.exportOnSave(md);
+  assert.equal(r4.written, 2);
+  assert.deepEqual(env.S.writes.slice(-2).map(w => w[0]), ['file:///w/README-1.svg', 'file:///w/README-2.svg']);
+  // One free try per window session, not per save.
+  assert.equal(api._pro.triesLeft('Export on save'), 2);
+  api._batch.disposeSave();
+});
+
+test('Export on save: off by default; after the 3 tries a save shows a quiet status item, never a dialog', async () => {
+  const env = makeVscode({ files: [['/w/flow.mmd', Buffer.from('flowchart LR\n  A --> B\n')]] });
+  env.ctx.globalState = memState();
+  env.ctx.globalState._m.set('mermaidViewer.proTries', { 'Export on save': 3 });
+  const items = [];
+  env.vscode.window.createStatusBarItem = () => { const it = { shown: false, show() { it.shown = true; }, dispose() { it.disposed = true; } }; items.push(it); return it; };
+  let modal = 0;
+  const showInfo = env.vscode.window.showInformationMessage;
+  env.vscode.window.showInformationMessage = async (m, o, ...b) => { if (o && o.modal) modal++; return showInfo(m); };
+  const ext = load(env); const api = ext.activate(env.ctx);
+  exportPanel(env, () => ({ ok: true, svg: '<svg xmlns="http://www.w3.org/2000/svg"/>', w: 1, h: 1 }));
+  const doc = await env.vscode.workspace.openTextDocument(env.Uri.file('/w/flow.mmd'));
+  assert.equal(await api._batch.exportOnSave(doc), null, 'the setting is off by default: nothing happens');
+  env.S.config.exportOnSave = 'png';
+  const r = await api._batch.exportOnSave(doc);
+  assert.deepEqual(r, { locked: true });
+  assert.equal(env.S.writes.length, 0);
+  assert.equal(modal, 0);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].command, 'mermaidViewer.exportOnSaveUnlock');
+  assert.equal(items[0].shown, true);
+  api._batch.disposeSave();
 });

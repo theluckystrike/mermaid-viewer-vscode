@@ -189,7 +189,127 @@ function createBatch({ vscode, context, settings, prefs, makeHtml, pro, rel, sou
     return { target: target.toString(), pages: pages.length, failed: bad, bytes: pdf.length };
   }
 
-  return { exportWorkspace, exportPdf, Renderer };
+  // ---------- export on save (Pro) ----------
+  // When mermaidViewer.exportOnSave is svg, png or svg+png, saving a .mmd / .mermaid file (or a Markdown file with
+  // mermaid blocks) writes its diagrams next to it: name.svg, or name-1.svg, name-2.svg ... for Markdown blocks.
+  // Only diagrams whose text or export options changed are drawn again. One free try is one window session.
+  const FEATURE_SAVE = 'Export on save';
+  const saveState = { allowed: null, chain: Promise.resolve(), renderer: null, idle: null, done: new Map(), lock: null };
+  const formatsOf = (v) => ({ svg: ['svg'], png: ['png'], 'svg+png': ['svg', 'png'] })[v] || [];
+  function saveFormats(uri) {
+    try { return formatsOf(vscode.workspace.getConfiguration('mermaidViewer', uri).get('exportOnSave', 'off')); } catch { return []; }
+  }
+  function lockItem(show) {
+    if (!show) { if (saveState.lock) { saveState.lock.dispose(); saveState.lock = null; } return; }
+    if (saveState.lock || !vscode.window.createStatusBarItem) return;
+    const it = vscode.window.createStatusBarItem(vscode.StatusBarAlignment ? vscode.StatusBarAlignment.Left : 1, 0);
+    it.text = '$(lock) Mermaid export on save';
+    it.tooltip = 'Export on save is a Zovo Pro tool and its 3 free tries are used. Click for the unlock ways. Saving still works; only the automatic export is paused.';
+    it.command = 'mermaidViewer.exportOnSaveUnlock';
+    it.show();
+    saveState.lock = it;
+  }
+  if (pro.onDidChange) pro.onDidChange(() => { if (pro.has()) { saveState.allowed = true; lockItem(false); } });
+
+  function itemTarget(uri, it, format) {
+    const dir = path.dirname(uri.fsPath);
+    const base = path.basename(uri.fsPath).replace(/\.[^.]+$/, '');
+    return vscode.Uri.file(path.join(dir, base + (it.many ? `-${it.index + 1}` : '') + '.' + format));
+  }
+
+  async function exportOnSave(doc) {
+    if (!doc || !doc.uri || doc.uri.scheme !== 'file') return null;
+    const formats = saveFormats(doc.uri);
+    if (!formats.length) return null;
+    const md = T.isMarkdownPath(doc.uri.path) || doc.languageId === 'markdown';
+    const text = doc.getText();
+    if (md && !T.hasMermaidFence(text)) return null;
+    if (!md && !(T.isMermaidPath(doc.uri.path) || doc.languageId === 'mermaid')) return null;
+    if (saveState.allowed === null) {
+      saveState.allowed = await pro.quietGate(FEATURE_SAVE);
+      if (saveState.allowed && !pro.has()) vscode.window.setStatusBarMessage(`Mermaid Viewer: export on save is a Zovo Pro tool. This window uses one free try (${pro.triesLeft(FEATURE_SAVE)} left after it).`, 8000);
+    }
+    if (!saveState.allowed) { lockItem(true); return { locked: true }; }
+    const run = saveState.chain.then(() => exportDoc(doc.uri, text, md, formats));
+    saveState.chain = run.catch(() => {});
+    return run;
+  }
+
+  async function exportDoc(uri, text, md, formats) {
+    const s = settings();
+    const items = itemsIn(uri, text, md, s);
+    const ro = renderOpts(false);
+    const optKey = JSON.stringify(ro);
+    const stats = { written: 0, unchanged: 0, failed: [] };
+    clearTimeout(saveState.idle);
+    for (const it of items) {
+      const label = `${path.basename(uri.fsPath)}${it.many ? ` #${it.index + 1}` : ''}`;
+      if (it.refuse) { stats.failed.push(`${label}: ${it.refuse}`); continue; }
+      if (!it.text.trim()) continue;
+      for (const format of formats) {
+        const target = itemTarget(uri, it, format);
+        const key = target.toString();
+        const sig = format + '\n' + optKey + '\n' + it.text;
+        if (saveState.done.get(key) === sig) {
+          let exists = true;
+          try { await vscode.workspace.fs.stat(target); } catch { exists = false; }
+          if (exists) { stats.unchanged++; continue; }
+        }
+        if (!saveState.renderer) saveState.renderer = new Renderer(vscode, context, makeHtml, s.timeoutMs + 5000);
+        const res = await saveState.renderer.render(Object.assign({ text: it.text, format }, ro));
+        if (!res.ok) { stats.failed.push(`${label}: ${T.shortError(res.error)}`); break; }
+        const bytes = format === 'svg' ? Buffer.from('<?xml version="1.0" encoding="UTF-8"?>\n' + res.svg + '\n', 'utf8') : b64bytes(res.data);
+        if (!bytes) { stats.failed.push(`${label}: no image data`); break; }
+        await vscode.workspace.fs.writeFile(target, bytes);
+        saveState.done.set(key, sig);
+        stats.written++;
+      }
+    }
+    // Keep the export page for 20 s, so a burst of saves does not open and close it each time.
+    saveState.idle = setTimeout(() => { if (saveState.renderer) { saveState.renderer.close(); saveState.renderer = null; } }, 20000);
+    const parts = [];
+    if (stats.written) parts.push(`exported ${stats.written} file${stats.written === 1 ? '' : 's'}`);
+    if (stats.unchanged && !stats.written) parts.push('exports are up to date');
+    if (stats.failed.length) parts.push(`${stats.failed.length} not drawn (${stats.failed[0]})`);
+    if (parts.length) vscode.window.setStatusBarMessage(`Mermaid Viewer: ${parts.join(', ')}`, stats.failed.length ? 10000 : 5000);
+    return stats;
+  }
+
+  /** "Export on Save" command: choose the formats (workspace setting). Off is always free. */
+  async function configureExportOnSave() {
+    const ed = vscode.window.activeTextEditor;
+    const cur = vscode.workspace.getConfiguration('mermaidViewer', ed && ed.document.uri).get('exportOnSave', 'off');
+    const pick = await vscode.window.showQuickPick([
+      { label: 'SVG', value: 'svg' }, { label: 'PNG', value: 'png' }, { label: 'SVG and PNG', value: 'svg+png' }, { label: 'Off', value: 'off' },
+    ].map(x => Object.assign(x, { description: x.value === cur ? 'current' : '' })), {
+      placeHolder: 'When you save a .mmd file or a Markdown file with mermaid blocks, write its diagrams next to it as',
+    });
+    if (!pick) return null;
+    if (pick.value !== 'off' && !pro.has() && pro.triesLeft(FEATURE_SAVE) === 0) {
+      if (!(await pro.gate(FEATURE_SAVE))) return null;
+      saveState.allowed = true;
+    }
+    const target = (vscode.workspace.workspaceFolders || []).length ? 2 : 1; // Workspace, else Global
+    await vscode.workspace.getConfiguration('mermaidViewer').update('exportOnSave', pick.value, target);
+    if (pick.value === 'off') { lockItem(false); vscode.window.setStatusBarMessage('Mermaid Viewer: export on save is off', 4000); return pick.value; }
+    const where = 'next to the source file (name.svg, or name-1.svg, name-2.svg for Markdown blocks)';
+    vscode.window.setStatusBarMessage(`Mermaid Viewer: export on save is on (${pick.label}), ${where}`, 8000);
+    if (ed && ed.document && !ed.document.isDirty) await exportOnSave(ed.document);
+    return pick.value;
+  }
+
+  async function unlockExportOnSave() {
+    if (!(await pro.gate(FEATURE_SAVE))) return false;
+    saveState.allowed = true;
+    lockItem(false);
+    const ed = vscode.window.activeTextEditor;
+    if (ed) await exportOnSave(ed.document);
+    return true;
+  }
+
+  function disposeSave() { clearTimeout(saveState.idle); if (saveState.renderer) saveState.renderer.close(); lockItem(false); }
+
+  return { exportWorkspace, exportPdf, exportOnSave, configureExportOnSave, unlockExportOnSave, disposeSave, _saveState: saveState, Renderer };
 }
 
 module.exports = { createBatch, Renderer };

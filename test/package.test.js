@@ -55,7 +55,7 @@ test('no network code in the extension host or the webview script', () => {
   for (const f of ['media/preview.js', 'media/batch.js', 'media/svgtools.js']) assert.doesNotMatch(read(f), /\bfetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|new Worker/, f);
   // The only network code in the package: the GitHub Sponsors rail, used only after the user clicks Unlock.
   assert.match(read('src/license/sponsors.js'), /api\.github\.com\/graphql|graphql/);
-  assert.equal(require('../src/pro.js').PRO_ENABLED, false, 'this release ships with Pro switched off');
+  assert.equal(require('../src/pro.js').PRO_ENABLED, true, '0.3.0 ships with Zovo Pro on (3 free tries per tool)');
   const w = read('media/svgtools.js');
   assert.match(w, /securityLevel: 'strict'/);
   assert.match(w, /secure: \['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering', 'maxEdges', 'dompurifyConfig'\]/);

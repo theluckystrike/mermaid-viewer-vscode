@@ -2,13 +2,15 @@
 
 Free, no sign-in, works offline. Write Mermaid on the left and see the diagram on the right while you type, in `.mmd` files and in `mermaid` blocks inside Markdown. No login, no AI, no account and no network.
 
+Optional Zovo Pro (USD 19 once, every Zovo extension) adds PDF export with a title page, export of every diagram in the workspace, and export on save. Each Pro tool has 3 free tries. Everything that is free today stays free.
+
 ![VS Code with a sequence diagram open in Mermaid Viewer's split editor. The .mmd text is on the left. On the right, the live diagram shows the User, App, API server and Database lanes with numbered messages and an alt block. The toolbar shows Theme, Background, the zoom buttons, Export and "Mermaid 12.3.0 · sequence" with the time it took.](https://github.com/theluckystrike/mermaid-viewer-vscode/raw/HEAD/images/editor.png)
 
 *Real output from VS Code 1.142 on macOS: `sequence.mmd` from `scripts/make-samples.mjs`, opened with "Open Diagram Editor". `scripts/e2e-editor.mjs` installed the packaged extension in a clean VS Code profile and saved the window through the debug port.*
 
 - It edits diagrams where they live. "Edit diagram" above each ` ```mermaid ` block in a Markdown file opens that block next to a live preview. Save, and the text goes back into the Markdown file. Undo in the Markdown file takes it back.
 - It helps while you type: completion for diagram types, keywords, arrows and shapes; a red underline on the line with the error; 15 starter templates.
-- It exports the size you ask for: PNG at an exact width or height, or at 1x, 2x or 4x. Small SVG files, with an option for plain text labels that Azure DevOps and GitHub wikis show. PDF with a title page. Copy PNG or SVG to the clipboard.
+- It exports the size you ask for: PNG at an exact width or height, or at 1x, 2x or 4x. Small SVG files, with an option for plain text labels that Azure DevOps and GitHub wikis show. Copy PNG or SVG to the clipboard. With Zovo Pro: PDF with a title page, the whole workspace at once, and fresh SVG/PNG files on every save.
 - Mermaid 12.3.0 ships inside, so it draws behind a proxy or on a plane, and it never asks you to log in.
 
 ## Quick start
@@ -66,11 +68,23 @@ Mermaid Viewer is an independent extension by Zovo. It is not made by, and does 
 | Text labels for wikis | Labels as plain SVG text instead of HTML. Use it for Azure DevOps and GitHub wikis and for tools that drop HTML in SVG. |
 | Save PNG, Save SVG | A save dialog next to the source file. In Markdown, the file name gets the diagram number. |
 | Copy PNG, Copy SVG code | To the clipboard, ready to paste into a chat, an issue or a slide |
-| Save PDF | Every diagram of the file in one PDF, with a title page that lists them |
+| Save PDF (Pro) | Every diagram of the file in one PDF, with a title page that lists them |
 
 Exports use the background from the toolbar: the editor color, white, transparent or a custom color. SVG files name no web fonts and load nothing from the internet.
 
-"Export All Diagrams in Workspace" writes every diagram of every `.mmd`, `.mermaid` and Markdown file in the folder to SVG, PNG or both, into `mermaid-export/` with the same folders as the sources. Diagrams that cannot be drawn are listed at the end.
+Pro tools for docs that live in a repository:
+
+- "Export All Diagrams in Workspace" (Pro) writes every diagram of every `.mmd`, `.mermaid` and Markdown file in the folder to SVG, PNG or both, into `mermaid-export/` with the same folders as the sources. Diagrams that cannot be drawn are listed at the end.
+- "Export on Save" (Pro) keeps image files next to the source up to date. Pick SVG, PNG or both. Each time you save `flow.mmd`, `flow.svg` is written next to it; a Markdown file `README.md` gets `README-1.svg`, `README-2.svg` and so on. Only diagrams whose text changed are drawn again, so saving a long document stays fast. A small "Mermaid export" tab draws them and closes 20 seconds after the last save.
+- "Save PDF" (Pro) puts every diagram of a file in one PDF with a title page.
+
+## Zovo Pro (USD 19, paid once, for every Zovo extension)
+
+You can use each Pro tool 3 times for free on this computer (for export on save, one window session is one try). After that, starting the tool shows one message with the ways to unlock it. There are no popups when you open a file, no ads and no countdowns, and nothing that is free today gets locked.
+
+Zovo Pro is USD 19 once on GitHub Sponsors (the ["$19 one time" tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878)). If you bought that tier, or have a monthly sponsorship of USD 10 or more that is still running, run "Zovo: Unlock Pro with GitHub Sponsors". The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro. No GitHub account? Send USD 19 to [paypal.com/paypalme/najzzz/19](https://www.paypal.com/paypalme/najzzz/19) with "Zovo Pro" in the note, and you get a license key by email within a day. Run "Zovo: Enter license key" to add it. A key is checked on your computer.
+
+To hide the Pro tools from menus and the Command Palette, set `mermaidViewer.showProFeatures` to `false`.
 
 ## Big and untrusted files
 
@@ -101,12 +115,14 @@ The Mermaid theme follows VS Code: dark in dark themes, default in light ones. T
 | `mermaidViewer.saveMarkdownOnBlockSave` | `true` | Save the Markdown file when you save a block, if it had no other changes |
 | `mermaidViewer.svgTextLabels` | `false` | SVG export with plain text labels by default |
 | `mermaidViewer.exportFolder` | `mermaid-export` | Folder for "Export All Diagrams in Workspace" |
+| `mermaidViewer.exportOnSave` | `off` | Pro: `svg`, `png` or `svg+png` writes the diagrams next to the source on save |
+| `mermaidViewer.showProFeatures` | `true` | Show the Pro tools and the Zovo license commands |
 | `mermaidViewer.askForRating` | `true` | One rating request after some use |
 | `mermaidViewer.showSupportLinks` | `true` | The small Rate, Sponsor and More free viewers links under the preview |
 
 ## Privacy
 
-Mermaid Viewer sends nothing anywhere. It has no telemetry, no account and no AI. The preview and export pages block every network request with their Content Security Policy, and the extension makes no network calls. Links you click in the footer (Rate, Sponsor) open in your browser.
+Mermaid Viewer sends nothing anywhere. It has no telemetry, no account and no AI. The preview and export pages block every network request with their Content Security Policy, and the extension makes no network calls. The one exception is when you choose "Unlock with GitHub Sponsors": it asks GitHub one question about your sponsorship. Monthly sponsors get one silent recheck every 30 days. Links you click in the footer (Rate, Sponsor) open in your browser.
 
 ## Limits
 

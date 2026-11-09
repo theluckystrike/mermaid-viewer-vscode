@@ -1,8 +1,8 @@
 {
   "name": "mermaid-viewer",
   "displayName": "Mermaid Diagram Editor & Viewer, Live Diagram Preview (MMD, PNG/SVG Export, Offline)",
-  "description": "Free Mermaid editor with a live diagram preview: edit .mmd files and mermaid blocks in Markdown side by side, with completion, error lines, templates and PNG, SVG or PDF export. No sign-in, no AI, works offline.",
-  "version": "0.2.0",
+  "description": "Free Mermaid editor with a live diagram preview: edit .mmd files and mermaid blocks in Markdown side by side, with completion, error lines, templates and PNG or SVG export. No sign-in, no AI, works offline. Optional Zovo Pro adds PDF, workspace and on-save export.",
+  "version": "0.3.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -119,12 +119,22 @@
       },
       {
         "command": "mermaidViewer.exportPdf",
-        "title": "Export Diagrams to PDF",
+        "title": "Export Diagrams to PDF with a Title Page (Pro)",
         "category": "Mermaid Viewer"
       },
       {
         "command": "mermaidViewer.exportWorkspace",
-        "title": "Export All Diagrams in Workspace (SVG/PNG)",
+        "title": "Export All Diagrams in Workspace (SVG/PNG) (Pro)",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.exportOnSave",
+        "title": "Export on Save: Keep SVG/PNG Next to the Source Up to Date (Pro)",
+        "category": "Mermaid Viewer"
+      },
+      {
+        "command": "mermaidViewer.exportOnSaveUnlock",
+        "title": "Unlock Export on Save (Zovo Pro)",
         "category": "Mermaid Viewer"
       },
       {
@@ -170,7 +180,7 @@
       },
       {
         "command": "mermaidViewer.getPro",
-        "title": "Zovo: Get Pro (USD 19 once, all Zovo viewers)"
+        "title": "Zovo: Get Pro (USD 19 once, all Zovo extensions)"
       },
       {
         "command": "mermaidViewer.unlockWithSponsors",
@@ -221,7 +231,7 @@
         },
         {
           "command": "mermaidViewer.exportPdf",
-          "when": "resourceExtname =~ /^\\.(mmd|mermaid|md|markdown)$/i",
+          "when": "(resourceExtname =~ /^\\.(mmd|mermaid|md|markdown)$/i) && mermaidViewer.proVisible",
           "group": "7_modification@9"
         }
       ],
@@ -260,11 +270,11 @@
         },
         {
           "command": "mermaidViewer.exportPdf",
-          "when": "mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i"
+          "when": "(mermaidViewer.isMermaid || editorLangId == markdown || resourceExtname =~ /^\\.(mmd|mermaid)$/i) && mermaidViewer.proVisible"
         },
         {
           "command": "mermaidViewer.exportWorkspace",
-          "when": "workbenchState != empty"
+          "when": "(workbenchState != empty) && mermaidViewer.proVisible"
         },
         {
           "command": "mermaidViewer.outlineReveal",
@@ -284,19 +294,27 @@
         },
         {
           "command": "mermaidViewer.enterLicenseKey",
-          "when": "mermaidViewer.proEnabled"
+          "when": "mermaidViewer.proEnabled && mermaidViewer.proVisible"
         },
         {
           "command": "mermaidViewer.getPro",
-          "when": "mermaidViewer.proEnabled"
+          "when": "mermaidViewer.proEnabled && mermaidViewer.proVisible"
         },
         {
           "command": "mermaidViewer.unlockWithSponsors",
-          "when": "mermaidViewer.proEnabled"
+          "when": "mermaidViewer.proEnabled && mermaidViewer.proVisible"
         },
         {
           "command": "mermaidViewer.removeLicense",
-          "when": "mermaidViewer.proEnabled"
+          "when": "mermaidViewer.proEnabled && mermaidViewer.proVisible"
+        },
+        {
+          "command": "mermaidViewer.exportOnSave",
+          "when": "mermaidViewer.proVisible"
+        },
+        {
+          "command": "mermaidViewer.exportOnSaveUnlock",
+          "when": "false"
         }
       ],
       "view/item/context": [
@@ -314,7 +332,7 @@
       "view/title": [
         {
           "command": "mermaidViewer.exportPdf",
-          "when": "view == mermaidViewer.outline",
+          "when": "(view == mermaidViewer.outline) && mermaidViewer.proVisible",
           "group": "navigation@1"
         }
       ]
@@ -442,6 +460,29 @@
           "type": "boolean",
           "default": true,
           "description": "Show the small Sponsor and More free viewers links at the bottom of the preview. The change shows in previews you open next. Nothing is sent anywhere."
+        },
+        "mermaidViewer.exportOnSave": {
+          "type": "string",
+          "enum": [
+            "off",
+            "svg",
+            "png",
+            "svg+png"
+          ],
+          "enumDescriptions": [
+            "Do not export on save",
+            "Write name.svg next to the source",
+            "Write name.png next to the source (size and background from the Export menu)",
+            "Write both"
+          ],
+          "default": "off",
+          "scope": "resource",
+          "markdownDescription": "Zovo Pro (3 free tries, one per window session). When you save a `.mmd` / `.mermaid` file, or a Markdown file with mermaid blocks, write its diagrams next to it: `name.svg`, or `name-1.svg`, `name-2.svg` for Markdown blocks. Only diagrams that changed are drawn again."
+        },
+        "mermaidViewer.showProFeatures": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show the Zovo Pro tools (workspace export, PDF export, export on save) and the Zovo license commands in menus and the Command Palette. Off hides them unless a license is active. Free features are not affected."
         }
       }
     },

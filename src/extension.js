@@ -428,7 +428,8 @@ function activate(context) {
     return manager.open(uri, side ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active);
   };
   blocks = createBlocks({ vscode, context, isMarkdownDoc, setting, openPreview: uri => manager.open(uri, vscode.ViewColumn.Beside) });
-  const outline = createOutline({ vscode, isMarkdownDoc, isMermaidDoc, pro });
+  // The outline is free (0.3.0): it lists the diagrams of the open file, which is part of viewing.
+  const outline = createOutline({ vscode, isMarkdownDoc, isMermaidDoc, pro: { has: () => true } });
   const rel = u => { try { return vscode.workspace.asRelativePath(u, false); } catch { return path.basename(u.path); } };
   const batch = createBatch({
     vscode, context, settings, pro, rel, sourceFor: u => blocks.sourceFor(u),
@@ -503,8 +504,10 @@ function activate(context) {
     }),
     vscode.commands.registerCommand('mermaidViewer.outlineEdit', it => { const d = outline.current(); if (d) return blocks.editBlock(d.uri, it && it.index); }),
     vscode.commands.registerCommand('mermaidViewer.outlinePreview', it => { const d = outline.current(); if (d) return previewBlock(d.uri, it && it.md ? it.index : undefined); }),
-    vscode.commands.registerCommand('mermaidViewer.unlockOutline', async () => { if (await pro.gate('Diagram outline')) outline.refresh(); }),
-    pro.onDidChange(() => outline.refresh()),
+    vscode.commands.registerCommand('mermaidViewer.unlockOutline', () => outline.refresh()),
+    vscode.commands.registerCommand('mermaidViewer.exportOnSave', () => batch.configureExportOnSave()),
+    vscode.commands.registerCommand('mermaidViewer.exportOnSaveUnlock', () => batch.unlockExportOnSave()),
+    { dispose: () => batch.disposeSave() },
     vscode.commands.registerCommand('mermaidViewer.openWalkthrough', () => vscode.commands.executeCommand('workbench.action.openWalkthrough', `${EXT_ID}#mermaidViewer.start`, false)),
     vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
       async deserializeWebviewPanel(panel, state) {
@@ -522,7 +525,10 @@ function activate(context) {
       const ed = vscode.window.activeTextEditor;
       if (ed && ed.document === e.document && isMarkdownDoc(e.document)) { clearTimeout(ctxTimer); ctxTimer = setTimeout(() => updateContext(ed), 500); }
     }),
-    vscode.workspace.onDidSaveTextDocument(doc => { const p = manager.previews.get(doc.uri.toString()); if (p) p.schedule(0); }),
+    vscode.workspace.onDidSaveTextDocument(doc => {
+      const p = manager.previews.get(doc.uri.toString()); if (p) p.schedule(0);
+      batch.exportOnSave(doc).catch(err => vscode.window.setStatusBarMessage('Mermaid Viewer: export on save failed: ' + String(err && err.message || err).slice(0, 200), 10000));
+    }),
     vscode.window.onDidChangeTextEditorSelection(e => { const p = manager.previews.get(e.textEditor.document.uri.toString()); if (p) p.onSelection(e.textEditor); }),
     vscode.window.onDidChangeActiveTextEditor(ed => { updateContext(ed); outline.track(ed); }),
     vscode.workspace.onDidCloseTextDocument(doc => { if (!manager.previews.has(doc.uri.toString())) manager.diagnostics.delete(doc.uri); }),
