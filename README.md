@@ -1,4 +1,4 @@
-# Mermaid Diagram Editor & Viewer, Live Diagram Preview
+# Mermaid Diagram Viewer & Mermaid Editor, Live Mermaid Preview
 
 Free, no sign-in, works offline. Write Mermaid on the left and see the diagram on the right while you type, in `.mmd` files and in `mermaid` blocks inside Markdown. No login, no AI, no account and no network.
 

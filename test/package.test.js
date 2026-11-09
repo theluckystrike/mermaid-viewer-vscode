@@ -9,13 +9,17 @@ const root = path.join(__dirname, '..');
 const pkg = require('../package.json');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
-test('display name holds every word of each target phrase (DEMAND2 build 4) and no rival listing name', () => {
+test('display name holds every word of each target phrase (DEMAND2 build 4); NAME RULE FIX: the #1 phrase first and together, no rival listing name copied', () => {
   const words = new Set(pkg.displayName.toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean));
   for (const phrase of ['mermaid editor', 'mermaid live editor', 'diagram editor', 'mermaid diagram', 'mermaid diagram viewer', 'mermaid preview', 'mermaid viewer', 'mmd viewer', 'mermaid'])
     for (const w of phrase.split(' ')) assert.ok(words.has(w), `"${w}" from "${phrase}" is missing in the display name`);
-  // NAME GUARD: not the exact name of another listing ("Mermaid Editor", "Mermaid Preview", "Mermaid Viewer", "Mermaid Chart").
-  for (const rival of ['Mermaid Editor', 'Mermaid Preview', 'Mermaid Viewer', 'Mermaid Chart', 'Markdown Preview Mermaid Support'])
-    assert.ok(!pkg.displayName.includes(rival), rival);
+  // NAME RULE FIX (wave15 COMMON, 9 Nov 15:20): keep the exact search phrase together and first. "mermaid diagram viewer"
+  // is the phrase this listing ranks #1 on (VERP2, gallery search 9 Nov 21:20); "mermaid editor" and "mermaid preview" stay whole.
+  assert.ok(pkg.displayName.startsWith('Mermaid Diagram Viewer'), pkg.displayName);
+  for (const run of ['Mermaid Editor', 'Mermaid Preview']) assert.ok(pkg.displayName.includes(run), run);
+  // NAME GUARD: never the exact full name of another listing, never a claim to be it.
+  for (const rival of ['Mermaid Editor', 'Mermaid Preview', 'Mermaid Viewer', 'Mermaid Chart', 'Markdown Preview Mermaid Support', 'Mermaid'])
+    assert.notStrictEqual(pkg.displayName.trim().toLowerCase(), rival.toLowerCase(), rival);
   assert.ok(pkg.displayName.length <= 90);
 });
 

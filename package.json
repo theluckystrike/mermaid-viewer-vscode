@@ -1,6 +1,6 @@
 {
   "name": "mermaid-viewer",
-  "displayName": "Mermaid Diagram Editor & Viewer, Live Diagram Preview (MMD, PNG/SVG Export, Offline)",
+  "displayName": "Mermaid Diagram Viewer & Mermaid Editor, Live Mermaid Preview (MMD, PNG/SVG, Offline)",
   "description": "Free Mermaid editor with a live diagram preview: edit .mmd files and mermaid blocks in Markdown side by side, with completion, error lines, templates and PNG or SVG export. No sign-in, no AI, works offline. Optional Zovo Pro adds PDF, workspace and on-save export.",
   "version": "0.3.0",
   "publisher": "zovo",

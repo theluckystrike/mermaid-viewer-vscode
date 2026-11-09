@@ -22,7 +22,7 @@
 - Trackpad: with the new default `mermaidViewer.wheel` = `auto`, two fingers pan and a pinch zooms; a mouse wheel still zooms.
 - New settings: `codeLens`, `saveMarkdownOnBlockSave`, `svgTextLabels`, `exportFolder`.
 - Rating ask v2.1 (2 files in 2 sessions at least 4 hours apart). The footer and "More free viewers" now start with Rate and with the Zovo extensions most related to this one.
-- The listing name is now "Mermaid Diagram Editor & Viewer, Live Diagram Preview (MMD, PNG/SVG Export, Offline)". Commands, settings and the extension id are unchanged.
+- The listing name is now "Mermaid Diagram Viewer & Mermaid Editor, Live Mermaid Preview (MMD, PNG/SVG, Offline)": "Mermaid Diagram Viewer" (the phrase this listing ranks #1 on) stays first and together, and "Mermaid Editor" and "Live Mermaid Preview" are added. Commands, settings and the extension id are unchanged.
 
 ## 0.1.1 (2026-11-08)
 
