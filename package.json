@@ -324,6 +324,10 @@
         {
           "command": "mermaidViewer.exportOnSaveUnlock",
           "when": "false"
+        },
+        {
+          "command": "mermaidViewer.payWithPayPal",
+          "when": "mermaidViewer.proEnabled && mermaidViewer.proVisible"
         }
       ],
       "view/item/context": [
