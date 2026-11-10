@@ -82,7 +82,7 @@ Pro tools for docs that live in a repository:
 
 You can use each Pro tool 3 times for free on this computer (for export on save, one window session is one try). After that, starting the tool shows one message with the ways to unlock it. There are no popups when you open a file, no ads and no countdowns, and nothing that is free today gets locked.
 
-Zovo Pro is USD 19 once on GitHub Sponsors (the ["$19 one time" tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878)). If you bought that tier, or have a monthly sponsorship of USD 10 or more that is still running, run "Zovo: Unlock Pro with GitHub Sponsors". The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro. No GitHub account? Send USD 19 to [paypal.com/paypalme/najzzz/19](https://www.paypal.com/paypalme/najzzz/19) with "Zovo Pro" in the note, and you get a license key by email within a day. Run "Zovo: Enter license key" to add it. A key is checked on your computer.
+Zovo Pro is USD 19 once on GitHub Sponsors (the ["$19 one time" tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878)). If you bought that tier, or have a monthly sponsorship of USD 10 or more that is still running, run "Zovo Pro: I already paid: unlock with GitHub Sponsors". The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro. No GitHub account? Choose "Pay with PayPal" in the Pro message, or run "Zovo Pro: Pay for Zovo Pro with PayPal": USD 19, or USD 59 for a team of 5, at [paypal.com/paypalme/najzzz/19](https://www.paypal.com/paypalme/najzzz/19). Send the transaction ID with the short form it opens, and the license key comes by email. Run "Zovo Pro: Enter Zovo Pro license key" to add it. Turn Pro on once: the other Zovo extensions on the same computer read it from `~/.zovo/pro.json` (readable only by you; the key, or your GitHub login and tier, never a token) and are Pro too, with no second sign-in or paste. A key is checked on your computer.
 
 To hide the Pro tools from menus and the Command Palette, set `mermaidViewer.showProFeatures` to `false`.
 
@@ -132,18 +132,25 @@ Mermaid Viewer sends nothing anywhere. It has no telemetry, no account and no AI
 
 ## Support Zovo
 
-Zovo extensions are free, with no ads and no tracking. They are made by [theluckystrike](https://github.com/theluckystrike) on GitHub. If this one saves you time, you can support the work:
+Zovo Pro: USD 19 once, every Zovo viewer. [Get Zovo Pro on GitHub Sponsors](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878) to turn on the Pro tools in this extension and in the other Zovo extensions you use. The free features stay free.
+
+Zovo extensions have no ads and no tracking. They are made by [theluckystrike](https://github.com/theluckystrike) on GitHub. You can also support the work with no Pro:
 
 - [Sponsor on GitHub](https://github.com/sponsors/theluckystrike)
 - [PayPal](https://www.paypal.com/paypalme/najzzz)
 - [Follow theluckystrike on GitHub](https://github.com/theluckystrike)
 
+### Need your format supported?
+
+Open a [format request](https://github.com/theluckystrike/mermaid-viewer-vscode/issues/new?template=format-request.yml) with a sample file, and I reply there whether it can be done. For USD 299 once, through [this GitHub Sponsors tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679995), I add your file format or a missing feature to this extension, with tests, within 7 days.
+
 ## More tools by Zovo
 
 - [Graphviz Viewer & DOT Viewer (Live Preview)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-graphviz-preview) shows a live preview of DOT files and exports SVG or PNG.
-- [PDF Viewer & Reader to Read and View PDF in Dark Mode](https://marketplace.visualstudio.com/items?itemName=zovo.pdf-viewer-dark) reads PDFs with a real dark mode, search, an outline and thumbnails.
-- [XLSX Viewer & CSV Preview for Excel, XLS & Parquet](https://marketplace.visualstudio.com/items?itemName=zovo.table-viewer-vscode) opens CSV, TSV, Excel and Parquet files as a sortable, filterable table.
-- [DOCX Viewer & ODT Viewer, Word Document Preview (Dark Mode)](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) previews Word and ODT files with dark mode, an outline and search.
+- [SVG Preview & SVG Viewer (PNG Export)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-svg-viewer) previews SVG beside the editor and exports PNG; scripts never run.
+- [XMind Viewer & Mind Map Viewer (XMind 8, 2020+)](https://marketplace.visualstudio.com/items?itemName=zovo.xmind-mind-map-viewer) opens XMind, FreeMind and OPML mind maps, with search and export.
+- [HTML Preview & HTML Viewer (Live, CSS and Images, Offline)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-html-preview) previews HTML beside the editor with its CSS, JS and images.
+- [RST Preview & reStructuredText Preview (RST Viewer, No Python)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-rst-preview) previews reStructuredText with no Python and no Sphinx.
 
 See [all Zovo extensions on the Marketplace](https://marketplace.visualstudio.com/publishers/zovo).
 

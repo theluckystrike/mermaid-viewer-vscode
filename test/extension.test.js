@@ -424,7 +424,10 @@ test('Pro: 3 free tries per tool with no dialog, then one dialog per start; Esca
   const L = fakeLicense();
   const p = createPro({ vscode: env.vscode, context: env.ctx, enabled: true, license: L.api });
   assert.equal(p.has(), false);
-  for (let i = 0; i < 3; i++) assert.equal(await p.gate('Export to PDF with a title page'), true);
+  // EXEC14: gate() checks, commit() uses the try once the output is written; a cancelled run keeps it.
+  assert.equal(await p.gate('Export to PDF with a title page'), true);
+  assert.equal(p.triesLeft('Export to PDF with a title page'), 3, 'a run that stops before output keeps the try');
+  for (let i = 0; i < 3; i++) { assert.equal(await p.gate('Export to PDF with a title page'), true); await p.commit('Export to PDF with a title page'); }
   assert.equal(L.asked, 0, 'no dialog during the free tries');
   assert.match(env.S.info.join('\n'), /Free try 3 of 3, the last one/);
   assert.equal(p.triesLeft('Export to PDF with a title page'), 0);

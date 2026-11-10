@@ -34,7 +34,7 @@ test('page: all 3 scripts carry the nonce, title is escaped, version shown, expo
 });
 
 test('page: support footer shows by default and hides with the setting', () => {
-  assert.match(buildHtml(base), /id="zovo-support"[\s\S]*Rate[\s\S]*More free viewers[\s\S]*Sponsor/);
+  assert.match(buildHtml(base), /id="zovo-support"[\s\S]*Rate[\s\S]*More free viewers[\s\S]*Zovo Pro, USD 19/);
   assert.doesNotMatch(buildHtml({ ...base, showSupportLinks: false }), /zovo-support"/);
 });
 

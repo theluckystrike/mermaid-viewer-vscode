@@ -141,6 +141,7 @@ function createBatch({ vscode, context, settings, prefs, makeHtml, pro, rel, sou
         }
       });
     } finally { r.close(); }
+    if (stats.written > 0) await pro.commit('Export every diagram in the workspace');
     const msg = `Mermaid Viewer exported ${stats.written} file${stats.written === 1 ? '' : 's'} from ${stats.diagrams} diagram${stats.diagrams === 1 ? '' : 's'} in ${stats.files} file${stats.files === 1 ? '' : 's'} to ${rel(out)}.` + (stats.failed.length ? ` ${stats.failed.length} could not be drawn.` : '');
     const buttons = stats.failed.length ? ['Show problems'] : [];
     const pick = await vscode.window.showInformationMessage(msg, ...buttons);
@@ -184,6 +185,7 @@ function createBatch({ vscode, context, settings, prefs, makeHtml, pro, rel, sou
     } catch (e) { if (String(e && e.message) === 'cancelled') return; throw e; } finally { r.close(); }
     const pdf = buildPdf({ title: path.basename(uri.path), subtitle: [rel(uri), `Exported ${new Date().toISOString().slice(0, 10)} with Mermaid Viewer`], pages });
     await vscode.workspace.fs.writeFile(target, pdf);
+    await pro.commit('Export to PDF with a title page');
     const bad = pages.filter(p => p.error).length;
     vscode.window.setStatusBarMessage(`Mermaid Viewer: saved ${path.basename(target.path)} (${pages.length} diagram${pages.length === 1 ? '' : 's'}${bad ? `, ${bad} not drawn` : ''})`, 6000);
     return { target: target.toString(), pages: pages.length, failed: bad, bytes: pdf.length };
@@ -286,7 +288,7 @@ function createBatch({ vscode, context, settings, prefs, makeHtml, pro, rel, sou
     });
     if (!pick) return null;
     if (pick.value !== 'off' && !pro.has() && pro.triesLeft(FEATURE_SAVE) === 0) {
-      if (!(await pro.gate(FEATURE_SAVE))) return null;
+      if (!(await pro.gate(FEATURE_SAVE, undefined, true))) return null;
       saveState.allowed = true;
     }
     const target = (vscode.workspace.workspaceFolders || []).length ? 2 : 1; // Workspace, else Global
@@ -299,7 +301,7 @@ function createBatch({ vscode, context, settings, prefs, makeHtml, pro, rel, sou
   }
 
   async function unlockExportOnSave() {
-    if (!(await pro.gate(FEATURE_SAVE))) return false;
+    if (!(await pro.gate(FEATURE_SAVE, undefined, true))) return false;
     saveState.allowed = true;
     lockItem(false);
     const ed = vscode.window.activeTextEditor;
