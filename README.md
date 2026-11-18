@@ -11,6 +11,13 @@ Free, no sign-in, works offline. Write Mermaid on the left and see the diagram o
 - It exports the size you ask for: PNG at an exact width or height, or at 1x, 2x or 4x. Small SVG files, with an option for plain text labels that Azure DevOps and GitHub wikis show. PDF with a title page. Copy PNG or SVG to the clipboard.
 - Mermaid 12.3.0 ships inside, so it draws behind a proxy or on a plane, and it never asks you to log in.
 
+## Teams and companies
+
+- Zovo Pro Team is the company licence: USD 59 once for a team of 5, one key, the Pro tools in every Zovo extension that has them. [See Zovo Pro Team](https://license.zovo.one/buy/zovo-pro-team?client_reference_id=readme-mermaid)
+- Commercial use is allowed.
+- The key is checked on your computer, so it works offline. No account and no subscription.
+- Invoice with your company name and tax ID on request: support@zovo.one.
+
 ## Quick start
 
 1. Install the extension.
